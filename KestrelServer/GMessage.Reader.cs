@@ -24,7 +24,6 @@ namespace KestrelServer
             UInt32 size = 0;
             size += sizeof(UInt16);  //HEADER
             size += sizeof(UInt32);  // FLAGES + TOTALLength
-            size += sizeof(UInt32);  // SerialNumber
             size += sizeof(UInt32);  // Action
             return size;
         }
@@ -53,7 +52,6 @@ namespace KestrelServer
             GMessage.Split(combineValue, out GMFlags _flags, out packetLen);
             if (reader.Length < packetLen) return ParseResult.Partial;
             message = GMessage.Create();
-            reader.TryRead<UInt32>(out message.SerialNumber);
             reader.TryRead<UInt32>(out message.Action);
             if ((_flags & GMFlags.HasTimestamp) == GMFlags.HasTimestamp)
             {
@@ -71,9 +69,10 @@ namespace KestrelServer
             if ((_flags & GMFlags.HasData) == GMFlags.HasData)
             {
                 reader.TryRead<UInt32>(out var length);
-                message.Payload.Alloc((Int32)length);
-                var span = new Span<Byte>(message.Payload.Data, 0, (Int32)length);
-                reader.TryCopyTo(span);
+                message.Payload.SetData(reader.UnreadSequence);
+                //message.Payload.Alloc((Int32)length);
+                //var span = new Span<Byte>(message.Payload.Data, 0, (Int32)length);
+                //reader.TryCopyTo(span);
             }
             return ParseResult.Ok;
         }

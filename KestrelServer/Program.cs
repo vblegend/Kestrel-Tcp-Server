@@ -15,16 +15,43 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
-using System.Security.Cryptography.X509Certificates;
+using System.Net.Http.Json;
+using System.Runtime.InteropServices;
 using System.Text;
+using System.Text.Json;
 
 namespace WebApplication
 {
+
+
+    public class TestClass : ISerializer
+    {
+        public Int32 X = 123456789;
+        public Int32 Y = 987654321;
+
+        public void Read(BinaryReader reader)
+        {
+            X = reader.ReadInt32();
+            Y = reader.ReadInt32();
+        }
+
+        public void Write(BinaryWriter writer)
+        {
+            writer.Write(X);
+            writer.Write(Y);
+        }
+    }
+
+
+
     public class Program
     {
-
+        // 
         public static (byte FirstByte, uint RemainingBytes) SplitUint32(uint value)
         {
+
+
+
             // 获取第一字节
             byte firstByte = (byte)((value >> 24) & 0xFF);
             // 获取剩余三个字节
@@ -40,19 +67,16 @@ namespace WebApplication
             return ((uint)firstByte << 24) | (remainingBytes ^ 0xFFFFFF);
         }
 
-  
         public static void Main(string[] args)
         {
-            GMessage gMessage = GMessage.Create(12345678, [1, 2, 3, 4, 5], [1, 2, 3, 4, 5, 6, 7, 8, 9, 255]);
-            gMessage.SerialNumber = 1000000234;
-        
+            GMessage gMessage = GMessage.Create(12345678, new TestClass());
+
             using (var stream = StreamPool.GetStream())
             {
-                using (var writer = new BinaryWriter(stream, Encoding.UTF8, true))
-                {
-                    gMessage.Write(writer);
-                    gMessage.Return();
-                }
+
+                gMessage.WriteToAsync(stream).Wait();
+                gMessage.Return();
+
                 var span = stream.GetBuffer();
                 for (int i = 0; i < stream.Length; i++)
                 {
@@ -93,6 +117,13 @@ namespace WebApplication
             var ipBlock = new IPBlacklistTrie();
             //ipBlock.Add("127.0.0.1");
             //ipBlock.Add("192.168.1.1/24");
+
+
+
+            services.AddSingleton<TimeService>();
+            services.AddHostedService(provider => provider.GetRequiredService<TimeService>());
+
+
             services.AddSingleton<IPBlacklistTrie>(ipBlock);
 
         }

@@ -1,5 +1,9 @@
-﻿using System;
+﻿using Microsoft.IO;
+using System;
 using System.Buffers;
+using System.IO;
+using System.Reflection.PortableExecutable;
+using System.Text;
 
 namespace KestrelServer
 {
@@ -22,6 +26,15 @@ namespace KestrelServer
     {
 
     }
+
+    public interface ISerializer
+    {
+        void Read(BinaryReader reader);
+        void Write(BinaryWriter writer);
+
+
+    }
+
 
 
     public abstract class PoolingData<Type>
@@ -53,10 +66,7 @@ namespace KestrelServer
         /// <param name="length"></param>
         public void Alloc(Int32 length)
         {
-            if (dataType == DataType.Pool && Length > 0)
-            {
-                ArrayPool<Type>.Shared.Return(Data, true);
-            }
+            this.Release();
             this.Length = length;
             Data = ArrayPool<Type>.Shared.Rent(length);
             dataType = DataType.Pool;
@@ -65,14 +75,14 @@ namespace KestrelServer
         /// <summary>
         /// 清理数据区域，如果数据区为池化数据则放回池子
         /// </summary>
-        public void Clear()
+        public void Release()
         {
             if (dataType == DataType.Pool && Length > 0)
             {
                 ArrayPool<Type>.Shared.Return(Data, true);
             }
             Length = 0;
-            Data = Array.Empty<Type>();
+            Data = [];
         }
 
     }
@@ -81,8 +91,44 @@ namespace KestrelServer
     public sealed class GMParameters : PoolingData<Int32>
     {
     }
-    public sealed class GMPayload : PoolingData<Byte>
+    public sealed class GMPayload 
     {
+        private RecyclableMemoryStream stream;
+        public void SetStream(RecyclableMemoryStream stream)
+        {
+            this.stream = stream;
+        }
+
+
+        public void SetData(ReadOnlySequence<Byte> sequence)
+        {
+            foreach (var item in sequence)
+            {
+
+            }
+        }
+
+        public ReadOnlySequence<byte> ReadOnlySequence()
+        {
+            return this.stream.GetReadOnlySequence();
+        }
+
+
+        public Int32 Length
+        {
+            get
+            {
+                return this.stream != null ? (Int32)this.stream.Length : 0;
+            }
+        }
+
+        public void Release()
+        {
+            this.stream?.Dispose();
+            this.stream = null;
+
+        }
+
     }
 
 
@@ -91,28 +137,36 @@ namespace KestrelServer
         public static readonly UInt16 Header = 0x474D;
         public static Boolean UseTimestamp = false;
         private Boolean _isReturn = false;
-        public UInt32 SerialNumber = 0;
         public UInt32 Action = 0;
         public UInt32 Timestamp = 0;
-        public Int32[] Params = Array.Empty<Int32>();
-
-
         public readonly GMParameters Parameters = new GMParameters();
         public readonly GMPayload Payload = new GMPayload();
-
-
-
-
-
 
         public static GMessage Create(UInt32 action, Int32[] _params, Byte[] payload)
         {
             var message = GMessage.Create();
             message.Action = action;
             message.Parameters.SetData(_params);
-            message.Payload.SetData(payload);
+            //message.Payload.SetData(payload);
             return message;
         }
+
+
+
+        public static GMessage Create<T>(UInt32 action, T @object) where T : ISerializer
+        {
+            var message = GMessage.Create();
+            message.Action = action;
+            var stream = StreamPool.GetStream();
+            using (var writer = new BinaryWriter(stream, Encoding.UTF8, true))
+            {
+                @object.Write(writer);
+            }
+            stream.Position = 0;
+            message.Payload.SetStream(stream);
+            return message;
+        }
+
 
 
 
@@ -120,7 +174,7 @@ namespace KestrelServer
         {
             var message = GMessage.Create();
             message.Action = action;
-            message.Payload.SetData(payload);
+            //message.Payload.SetData(payload);
             return message;
         }
 

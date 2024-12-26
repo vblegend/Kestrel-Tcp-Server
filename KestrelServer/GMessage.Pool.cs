@@ -22,16 +22,31 @@ namespace KestrelServer
         }
 
 
-        private static ObjectPool<GMessage> Pool = ObjectPool.Create(new GMessagePooledObjectPolicy());
+        private static ObjectPool<GMessage> Pool = CreateObjectPool();
 
-        /// <summary>
-        /// Use GMessage.Create()
-        /// </summary>
-        public GMessage()
+
+        private static ObjectPool<GMessage> CreateObjectPool()
         {
-            
+            var provider = new DefaultObjectPoolProvider();
+            return provider.Create(new GMessagePooledObjectPolicy());
         }
 
+
+
+        /// <summary>
+        /// disabled, Use GMessage.Create()
+        /// </summary>
+        private GMessage()
+        {
+
+        }
+         ~GMessage()
+        {
+            this.Payload.Release();
+            this.Parameters.Release();
+            this.Action = 0;
+            this.Timestamp = 0;
+        }
 
         /// <summary>
         /// 从封包对象池中取出一个封包对象
@@ -50,17 +65,20 @@ namespace KestrelServer
         /// </summary>
         public void Return()
         {
-            this.Payload.Clear();
-            this.Parameters.Clear();
+            this.Payload.Release();
+            this.Parameters.Release();
             this.Action = 0;
             this.Timestamp = 0;
-            this.SerialNumber = 0;
             if (!_isReturn)
             {
                 GMessage.Pool.Return(this);
             }
-        
+
         }
+
+
+         
+
 
 
     }

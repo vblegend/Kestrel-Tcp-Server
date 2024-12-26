@@ -1,5 +1,7 @@
 ﻿using System;
+using System.Buffers;
 using System.IO;
+using System.Threading.Tasks;
 
 namespace KestrelServer
 {
@@ -15,8 +17,10 @@ namespace KestrelServer
         /// <summary>
         /// 0x02 - HEADER
         /// ====================================================
-        /// 0x01 - Flags 
+        /// 0x01 - Flags (HasParams | HasData | Compressed | HasTimestamp | LargePacket)
         /// 0x03 - LENGTH(完整包长度)
+        /// ====================================================
+        /// ↓↓↓↓↓可压缩部分↓↓↓↓↓
         /// ====================================================
         /// 0x04 - SerialNumber
         /// 0x04 - Action
@@ -30,20 +34,16 @@ namespace KestrelServer
         /// 0x?? - Data 可选
         /// ====================================================
         /// </summary>
-        public void Write(BinaryWriter writer)
+        public async Task WriteToAsync(IBufferWriter<byte> writer)
         {
-            var flags = BitConverter.IsLittleEndian ? GMFlags.LittleEndian : GMFlags.None;
+         //   BinaryWriter
 
+            var flags = BitConverter.IsLittleEndian ? GMFlags.LittleEndian : GMFlags.None;
             if (Parameters.Length > 0) flags |= GMFlags.HasParams;
             if (GMessage.UseTimestamp) flags |= GMFlags.HasTimestamp;
-            if (Payload.Length > 0)
-            {
-                flags |= GMFlags.HasData;
-                flags |= GMFlags.Compressed;
-            }
+            if (Payload.Length > 0) flags |= GMFlags.HasData;
             writer.Write(Header);
             writer.Write(Combine((Byte)flags, totalLength()));
-            writer.Write(SerialNumber);
             writer.Write((UInt32)Action);
             if (GMessage.UseTimestamp) writer.Write(99999999);
             if (Parameters.Length > 0)
@@ -56,9 +56,14 @@ namespace KestrelServer
             }
             if (Payload.Length > 0)
             {
-                writer.Write((UInt32)Payload.Length);
-                writer.Write(Payload.Data);
+                writer.Write(Payload.Length);
+
+                foreach (var item in Payload.ReadOnlySequence())
+                {
+                    writer.Write(item.Span);
+                }
             }
+            await Task.CompletedTask;
         }
 
 
@@ -67,7 +72,6 @@ namespace KestrelServer
             UInt32 size = 0;
             size += sizeof(UInt16);  //HEADER
             size += sizeof(UInt32);  // FLAGES + TOTALLength
-            size += sizeof(UInt32);  // SerialNumber
             size += sizeof(UInt32);  // Action
             if (GMessage.UseTimestamp)
             {
