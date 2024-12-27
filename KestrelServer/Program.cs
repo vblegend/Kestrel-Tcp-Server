@@ -2,42 +2,43 @@ using KestrelServer;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Connections;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
-using Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Microsoft.IO;
 using System;
 using System.Buffers;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
 using System.Net;
-using System.Net.Http.Json;
-using System.Runtime.InteropServices;
 using System.Text;
-using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
 
-namespace WebApplication
+namespace KestrelServer
 {
 
 
-    public class TestClass : ISerializer
+    public struct TestClass : IMessagePayload
     {
-        public Int32 X = 123456789;
-        public Int32 Y = 987654321;
+        public Int32 X = 123;
+        public String Text = "Hello";
+        public Int32 Y = 321;
 
-        public void Read(BinaryReader reader)
+        public TestClass()
         {
-            X = reader.ReadInt32();
-            Y = reader.ReadInt32();
         }
 
-        public void Write(BinaryWriter writer)
+        public void Read(SequenceReader<byte> reader)
+        {
+            reader.TryRead<Int32>(out X);
+            reader.TryReadString(out Text);
+            reader.TryRead<Int32>(out Y);
+        }
+
+
+        public void Write(IBufferWriter<byte> writer)
         {
             writer.Write(X);
+            writer.Write(Text, Encoding.UTF8);
             writer.Write(Y);
         }
     }
@@ -46,52 +47,36 @@ namespace WebApplication
 
     public class Program
     {
-        // 
-        public static (byte FirstByte, uint RemainingBytes) SplitUint32(uint value)
+        private static CancellationTokenSource _cancellationSource = new CancellationTokenSource();
+        public static async Task Main(string[] args)
         {
-
-
-
-            // 获取第一字节
-            byte firstByte = (byte)((value >> 24) & 0xFF);
-            // 获取剩余三个字节
-            uint remainingBytes = value & 0x00FFFFFF;
-            return (firstByte, remainingBytes ^ 0xFFFFFF);
-        }
-
-        public static uint Combine(byte firstByte, uint remainingBytes)
-        {
-            // 限制剩余字节只占低 3 个字节
-            remainingBytes &= 0x00FFFFFF;
-            // 将第一个字节移至高 8 位，并与剩余字节合并
-            return ((uint)firstByte << 24) | (remainingBytes ^ 0xFFFFFF);
-        }
-
-        public static void Main(string[] args)
-        {
-            GMessage gMessage = GMessage.Create(12345678, new TestClass());
-
-            using (var stream = StreamPool.GetStream())
+            var host = CreateHostBuilder(args).Build();
+            Console.CancelKeyPress += (sender, eventArgs) =>
             {
+                Console.WriteLine($"{DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")} Shutdown Requested...");
+                _cancellationSource.Cancel(true);
+                eventArgs.Cancel = true;
+            };
 
-                gMessage.WriteToAsync(stream).Wait();
-                gMessage.Return();
-
-                var span = stream.GetBuffer();
-                for (int i = 0; i < stream.Length; i++)
-                {
-                    Console.Write(span[i].ToString("X2"));
-                }
-                Console.WriteLine();
-                var reader = new SequenceReader<byte>(new ReadOnlySequence<byte>(stream.ToArray()));
-                GMessage.Parse(reader, out var msg, out var value);
-                msg.Return();
+            try
+            {
+                await host.RunAsync(_cancellationSource.Token);
             }
-
-            CreateHostBuilder(args).Build().Run();
+            catch (OperationCanceledException)
+            {
+                Console.WriteLine("Application is shutting down...");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex);
+            }
+            finally
+            {
+                await host.StopAsync();
+                host.Dispose();
+            }
+            Console.ReadLine();
         }
-
-
 
         public static IHostBuilder CreateHostBuilder(string[] args)
         {
@@ -118,13 +103,29 @@ namespace WebApplication
             //ipBlock.Add("127.0.0.1");
             //ipBlock.Add("192.168.1.1/24");
 
+            services.AddSingleton<IPBlacklistTrie>(ipBlock);
+
+            services.AddSingleton<GMPayloadResolver>();
+            services.AddSingleton<GMessageParser>();
+
+
+
+
+            services.AddSingleton<TestService>();
+            services.AddHostedService(provider => provider.GetRequiredService<TestService>());
+
 
 
             services.AddSingleton<TimeService>();
             services.AddHostedService(provider => provider.GetRequiredService<TimeService>());
 
 
-            services.AddSingleton<IPBlacklistTrie>(ipBlock);
+
+
+
+            //services.AddSingleton<DynamicKestrelListenerService>();
+            //services.AddHostedService(provider => provider.GetRequiredService<DynamicKestrelListenerService>());
+
 
         }
 
@@ -143,7 +144,7 @@ namespace WebApplication
             options.Limits.MaxConcurrentConnections = 10;
             options.Listen(IPAddress.Any, 50000, listenOptions =>
             {
-                listenOptions.UseConnectionHandler<MyTCPConnectionHandler>();
+                 listenOptions.UseConnectionHandler<MyTCPConnectionHandler>();
             });
 
         }

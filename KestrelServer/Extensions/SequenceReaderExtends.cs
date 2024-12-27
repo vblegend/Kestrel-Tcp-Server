@@ -1,13 +1,11 @@
-﻿using System.Buffers;
-using System.Runtime.CompilerServices;
+﻿using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using System;
 using Microsoft.AspNetCore.Connections;
 using System.Threading.Tasks;
-using System.IO;
 using System.Text;
+using KestrelServer;
 
-namespace KestrelServer
+namespace System.Buffers
 {
     public static class SequenceReaderExtends
     {
@@ -18,7 +16,7 @@ namespace KestrelServer
             ReadOnlySpan<byte> span = reader.UnreadSpan;
             if (span.Length < sizeof(T))
             {
-                return TryReadMultisegment<T>(ref reader, out value);
+                return TryReadMultisegment(ref reader, out value);
             }
             value = Unsafe.ReadUnaligned<T>(ref MemoryMarshal.GetReference(span));
             reader.Advance(sizeof(T));
@@ -27,11 +25,11 @@ namespace KestrelServer
 
         private unsafe static bool TryReadMultisegment<T>(ref SequenceReader<byte> reader, out T value) where T : unmanaged
         {
-            T buffer = default(T);
+            T buffer = default;
             Span<byte> tempSpan = new Span<byte>(&buffer, sizeof(T));
             if (!reader.TryCopyTo(tempSpan))
             {
-                value = default(T);
+                value = default;
                 return false;
             }
             value = Unsafe.ReadUnaligned<T>(ref MemoryMarshal.GetReference(tempSpan));
@@ -41,7 +39,18 @@ namespace KestrelServer
 
 
 
-
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public unsafe static bool TryReadString(this ref SequenceReader<byte> reader, out string value, Encoding? encoding = null)
+        {
+            encoding ??= Encoding.UTF8;
+            reader.TryRead<int>(out var length);
+            if (!reader.TryReadExact(length, out ReadOnlySequence<byte> span))
+            {
+                throw new InvalidOperationException("Insufficient data in buffer.");
+            }
+            value = encoding.GetString(span);
+            return true;
+        }
 
 
 

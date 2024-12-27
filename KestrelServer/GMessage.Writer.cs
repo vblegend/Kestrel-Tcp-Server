@@ -1,6 +1,6 @@
-﻿using System;
+﻿using Microsoft.IO;
+using System;
 using System.Buffers;
-using System.IO;
 using System.Threading.Tasks;
 
 namespace KestrelServer
@@ -36,14 +36,24 @@ namespace KestrelServer
         /// </summary>
         public async Task WriteToAsync(IBufferWriter<byte> writer)
         {
-         //   BinaryWriter
-
+            //   BinaryWriter
             var flags = BitConverter.IsLittleEndian ? GMFlags.LittleEndian : GMFlags.None;
             if (Parameters.Length > 0) flags |= GMFlags.HasParams;
             if (GMessage.UseTimestamp) flags |= GMFlags.HasTimestamp;
-            if (Payload.Length > 0) flags |= GMFlags.HasData;
+            if (Payload != null) flags |= GMFlags.HasData;
+
+            var packetLength = totalLength();
+
+            RecyclableMemoryStream payloadStream = null;
+            if (Payload != null)
+            {
+                payloadStream = StreamPool.GetStream();
+                Payload.Write(payloadStream);
+                packetLength = packetLength +(UInt32)payloadStream.Length + 1;
+            }
+
             writer.Write(Header);
-            writer.Write(Combine((Byte)flags, totalLength()));
+            writer.Write(Combine((Byte)flags, packetLength));
             writer.Write((UInt32)Action);
             if (GMessage.UseTimestamp) writer.Write(99999999);
             if (Parameters.Length > 0)
@@ -54,14 +64,12 @@ namespace KestrelServer
                     writer.Write(Parameters.Data[i]);
                 }
             }
-            if (Payload.Length > 0)
+            if (payloadStream != null)
             {
-                writer.Write(Payload.Length);
-
-                foreach (var item in Payload.ReadOnlySequence())
-                {
-                    writer.Write(item.Span);
-                }
+                writer.Write((Byte)(payloadStream.Length % 255));
+                payloadStream.Position = 0;
+                await payloadStream.CopyToAsync((RecyclableMemoryStream)writer);
+                payloadStream.Dispose();
             }
             await Task.CompletedTask;
         }
@@ -82,12 +90,6 @@ namespace KestrelServer
                 size += sizeof(Byte); // Params Length
                 size += (UInt32)(sizeof(Int32) * Parameters.Length); // Params Data
             }
-            if (Payload.Length > 0)
-            {
-                size += sizeof(Int32);   //Data Len
-                size += (UInt32)Payload.Length;  // Data
-            }
-
             return size;
         }
 

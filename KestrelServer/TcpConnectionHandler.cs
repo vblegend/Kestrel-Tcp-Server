@@ -6,7 +6,7 @@ using System;
 using System.Buffers;
 using System.Threading.Tasks;
 
-namespace WebApplication
+namespace KestrelServer
 {
 
 
@@ -28,11 +28,13 @@ namespace WebApplication
             try
             {
                 long minimumReadSize = GMessage.MinimumSize;
-                while (true)
+                var cancellationToken = connection.ConnectionClosed;
+
+                while (!cancellationToken.IsCancellationRequested)
                 {
                     var Input = connection.Transport.Input;
                     var Output = connection.Transport.Output;
-                    var result = await Input.ReadAtLeastAsync((int)minimumReadSize);
+                    var result = await Input.ReadAtLeastAsync((int)minimumReadSize, cancellationToken);
                     if (result.IsCompleted) break;
                     var len = GMessage.ReadLength(new SequenceReader<byte>(result.Buffer));
                     if (len == UInt32.MaxValue || len > 64 * 1024)
@@ -56,12 +58,18 @@ namespace WebApplication
             {
 
             }
+            catch (OperationCanceledException)
+            {
+                // 处理取消操作的异常逻辑
+                Console.WriteLine($"{DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")} Connection was canceled.");
+            }
             catch (Exception ex)
             {
                 await this.OnError(connection, ex);
             }
             finally
             {
+                await connection.Transport.Output.CompleteAsync();
                 await this.OnClose(connection);
             }
 

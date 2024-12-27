@@ -1,7 +1,6 @@
-﻿using System;
+﻿
+using System;
 using System.Buffers;
-using System.Threading;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace KestrelServer
 {
@@ -41,41 +40,6 @@ namespace KestrelServer
         }
 
 
-
-        public static ParseResult Parse(SequenceReader<byte> reader, out GMessage message, out UInt32 packetLen)
-        {
-            packetLen = 0;
-            message = default;
-            reader.TryRead<UInt16>(out var header);
-            if (header != Header) return ParseResult.Illicit;
-            reader.TryRead<UInt32>(out var combineValue);
-            GMessage.Split(combineValue, out GMFlags _flags, out packetLen);
-            if (reader.Length < packetLen) return ParseResult.Partial;
-            message = GMessage.Create();
-            reader.TryRead<UInt32>(out message.Action);
-            if ((_flags & GMFlags.HasTimestamp) == GMFlags.HasTimestamp)
-            {
-                reader.TryRead<UInt32>(out message.Timestamp);
-            }
-            if ((_flags & GMFlags.HasParams) == GMFlags.HasParams)
-            {
-                reader.TryRead<Byte>(out var paramsLen);
-                message.Parameters.Alloc(paramsLen);
-                for (int i = 0; i < paramsLen; i++)
-                {
-                    reader.TryRead<Int32>(out message.Parameters.Data[i]);
-                }
-            }
-            if ((_flags & GMFlags.HasData) == GMFlags.HasData)
-            {
-                reader.TryRead<UInt32>(out var length);
-                message.Payload.SetData(reader.UnreadSequence);
-                //message.Payload.Alloc((Int32)length);
-                //var span = new Span<Byte>(message.Payload.Data, 0, (Int32)length);
-                //reader.TryCopyTo(span);
-            }
-            return ParseResult.Ok;
-        }
 
         private static void Split(uint combineValue, out GMFlags flags, out uint remainingBytes)
         {

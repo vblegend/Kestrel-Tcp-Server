@@ -1,14 +1,10 @@
 ﻿using Microsoft.AspNetCore.Connections;
-using Microsoft.Extensions.Logging;
 using System.Buffers;
 using System.Threading.Tasks;
 using System;
-using WebApplication;
+
 using System.Text;
-using System.Threading;
-using System.Collections.Generic;
-using System.Net;
-using System.Diagnostics;
+
 
 namespace KestrelServer
 {
@@ -16,17 +12,20 @@ namespace KestrelServer
     {
         private readonly IPBlacklistTrie iPBlacklist;
         private readonly TimeService timeService;
+        private readonly GMessageParser messageParser;
 
-        public MyTCPConnectionHandler(IPBlacklistTrie iPBlacklist, TimeService timeService)
+        public MyTCPConnectionHandler(IPBlacklistTrie iPBlacklist, TimeService timeService, GMessageParser messageParser)
         {
             this.timeService = timeService;
             this.iPBlacklist = iPBlacklist;
+            this.messageParser = messageParser;
         }
 
 
 
         protected override async Task<Boolean> OnConnected(ConnectionContext connection)
         {
+
             if (connection.RemoteEndPoint is System.Net.IPEndPoint ipEndPoint)
             {
                 var ipOfBytes = ipEndPoint.Address.GetAddressBytes();
@@ -37,14 +36,9 @@ namespace KestrelServer
                 }
             }
             connection.Items.Add("Username", "root");
-
-
             var time = this.timeService.Now();
-
             Console.WriteLine($"{time} Client connected: {connection.ConnectionId} {connection.RemoteEndPoint}");
-
             await connection.Send(GMessage.Create(1001, [111, 222, 333, 444], Encoding.UTF8.GetBytes(time.ToString("yyyy-MM-dd HH:mm:ss"))));
-
             return true;
         }
 
@@ -62,10 +56,7 @@ namespace KestrelServer
 
         protected override async Task OnReceive(ConnectionContext connection, ReadOnlySequence<Byte> buffer)
         {
-
-
-
-            var result = GMessage.Parse(new SequenceReader<byte>(buffer), out GMessage message, out var packetLen);
+            var result = messageParser.Parse(new SequenceReader<byte>(buffer), out GMessage message);
             if (result == ParseResult.Illicit)
             {
                 connection.Abort();

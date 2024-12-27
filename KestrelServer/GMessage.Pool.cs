@@ -9,9 +9,7 @@ namespace KestrelServer
         {
             public override GMessage Create()
             {
-                var message = new GMessage();
-                Console.WriteLine("Create GMessage.");
-                return message;
+                return new GMessage();
             }
 
             public override bool Return(GMessage obj)
@@ -42,7 +40,7 @@ namespace KestrelServer
         }
          ~GMessage()
         {
-            this.Payload.Release();
+            this.Payload = null;
             this.Parameters.Release();
             this.Action = 0;
             this.Timestamp = 0;
@@ -65,7 +63,7 @@ namespace KestrelServer
         /// </summary>
         public void Return()
         {
-            this.Payload.Release();
+            this.Payload = null;
             this.Parameters.Release();
             this.Action = 0;
             this.Timestamp = 0;

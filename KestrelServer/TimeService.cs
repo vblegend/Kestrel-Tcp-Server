@@ -24,6 +24,8 @@ namespace KestrelServer
         {
             stopwatch.Stop();
             await Task.CompletedTask;
+            Console.WriteLine("TimeService.StopAsync");
+            await Task.CompletedTask;
         }
 
 
