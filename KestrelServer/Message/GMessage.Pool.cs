@@ -1,7 +1,7 @@
 ﻿using Microsoft.Extensions.ObjectPool;
 using System;
 
-namespace KestrelServer
+namespace KestrelServer.Message
 {
     public partial class GMessage
     {

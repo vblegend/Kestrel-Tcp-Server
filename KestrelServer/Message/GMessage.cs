@@ -5,7 +5,7 @@ using System.IO;
 using System.Reflection.PortableExecutable;
 using System.Text;
 
-namespace KestrelServer
+namespace KestrelServer.Message
 {
     [Flags]
     internal enum GMFlags : Byte
@@ -95,7 +95,8 @@ namespace KestrelServer
 
     public sealed partial class GMessage
     {
-        public static readonly UInt16 Header = 0x474D;
+        public static readonly UInt32 MinimumSize = CalcMinimumSize();
+        public static readonly UInt16 Header = 0x4D47;
         public static Boolean UseTimestamp = true;
         private Boolean _isReturn = false;
         public UInt32 Action = 0;
@@ -138,6 +139,35 @@ namespace KestrelServer
             return message;
         }
 
+
+
+        private static UInt32 CalcMinimumSize()
+        {
+            UInt32 size = 0;
+            size += sizeof(UInt16);  //HEADER
+            size += sizeof(UInt32);  // FLAGES + TOTALLength
+            size += sizeof(UInt32);  // Action
+            return size;
+        }
+
+
+
+
+        public static UInt32 ReadLength(SequenceReader<byte> reader)
+        {
+            reader.TryRead<UInt16>(out var header);
+            if (header != Header) return UInt32.MaxValue;
+            reader.TryRead<UInt32>(out var combineValue);
+            GMessage.Split(combineValue, out GMFlags _, out var packetLen);
+            return packetLen;
+        }
+
+
+        internal static void Split(uint combineValue, out GMFlags flags, out uint length)
+        {
+            flags = (GMFlags)(combineValue & 0xFF);
+            length = combineValue >> 8;
+        }
 
 
     }

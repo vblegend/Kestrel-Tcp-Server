@@ -2,7 +2,7 @@
 using System;
 using System.IO;
 
-namespace KestrelServer
+namespace KestrelServer.Pools
 {
     public static class StreamPool
     {
@@ -29,12 +29,12 @@ namespace KestrelServer
         {
             return defaultManager.GetStream();
         }
-        public static RecyclableMemoryStream GetStream(Int32 requiredSize)
+        public static RecyclableMemoryStream GetStream(int requiredSize)
         {
             return defaultManager.GetStream(null, requiredSize);
         }
 
-        public static RecyclableMemoryStream GetContiguousStream(Int32 requiredSize)
+        public static RecyclableMemoryStream GetContiguousStream(int requiredSize)
         {
             return defaultManager.GetStream(null, requiredSize, true);
         }

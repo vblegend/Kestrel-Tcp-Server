@@ -1,12 +1,12 @@
 ﻿using System;
 
-namespace KestrelServer
+namespace KestrelServer.Message
 {
     public class GMPayloadResolver
     {
 
 
-        public IMessagePayload Resolver(UInt32 action)
+        public IMessagePayload Resolver(uint action)
         {
             return new TestClass();
         }

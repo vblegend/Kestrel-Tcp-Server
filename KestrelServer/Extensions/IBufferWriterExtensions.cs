@@ -5,9 +5,8 @@ using System.Text;
 
 namespace System.Buffers
 {
-    public static class IBufferWriterExtends
+    public static class IBufferWriterExtensions
     {
-
         public static void Write(this IBufferWriter<byte> writer, byte value)
         {
             writer.Write([value]);
@@ -98,15 +97,6 @@ namespace System.Buffers
             encoding.GetBytes(value, buffer);
             writer.Advance(byteCount);
         }
-
-
-        public static async Task WriteAsync(this IBufferWriter<byte> writer, RecyclableMemoryStream sourceStream)
-        {
-            sourceStream.Position = 0;
-            await sourceStream.CopyToAsync(writer as RecyclableMemoryStream);
-        }
-
-
 
 
 

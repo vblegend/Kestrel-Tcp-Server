@@ -3,6 +3,10 @@ using System.Buffers;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using KestrelServer.Message;
+using KestrelServer.Pools;
+using Microsoft.Extensions.Logging;
+using System.Linq;
 
 
 namespace KestrelServer
@@ -10,9 +14,11 @@ namespace KestrelServer
     public class TestService : IHostedService
     {
         private readonly GMessageParser messageParser;
-        public TestService(GMessageParser messageParser)
+        private readonly ILogger<TestService> logger;
+        public TestService(GMessageParser messageParser ,ILogger<TestService> _logger  )
         {
             this.messageParser = messageParser;
+            this.logger = _logger;  
         }
 
 
@@ -24,11 +30,10 @@ namespace KestrelServer
                 await gMessage.WriteToAsync(stream);
                 gMessage.Return();
                 var span = stream.GetBuffer();
-                for (int i = 0; i < stream.Length; i++)
-                {
-                    Console.Write(span[i].ToString("X2"));
-                }
-                Console.WriteLine();
+
+                var array = span.Take((Int32)stream.Length).Select((e) => e.ToString("X2"));
+                var line = String.Join("", array);
+                logger.LogInformation(line);
                 var reader = new SequenceReader<byte>(new ReadOnlySequence<byte>(stream.ToArray()));
                 messageParser.Parse(reader, out var msg);
                 msg.Return();
@@ -39,7 +44,7 @@ namespace KestrelServer
 
         public async Task StopAsync(CancellationToken cancellationToken)
         {
-            Console.WriteLine("TestService.StopAsync");
+            logger.LogInformation("TestService.StopAsync()");
             await Task.CompletedTask;
         }
     }

@@ -1,13 +1,12 @@
 ﻿using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using Microsoft.AspNetCore.Connections;
-using System.Threading.Tasks;
+
 using System.Text;
-using KestrelServer;
+
 
 namespace System.Buffers
 {
-    public static class SequenceReaderExtends
+    public static class SequenceReaderExtensions
     {
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -54,19 +53,16 @@ namespace System.Buffers
 
 
 
-        public static async Task Send(this ConnectionContext context, GMessage message)
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public unsafe static bool TryReadDateTime(this ref SequenceReader<byte> reader, out DateTime value)
         {
-            using (var stream = StreamPool.GetStream())
-            {
-                await message.WriteToAsync(stream/* , context.Items["timeService"] */);
-                message.Return();
-                var sequence = stream.GetReadOnlySequence();
-                foreach (var item in sequence)
-                {
-                    context.Transport.Output.Write(item.Span);
-                }
-                await context.Transport.Output.FlushAsync();
-            }
+            reader.TryRead<long>(out var ticks);
+            value = new DateTime(ticks);
+            return true;
         }
+
+
+
     }
 }

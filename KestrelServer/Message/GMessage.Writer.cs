@@ -1,9 +1,10 @@
-﻿using Microsoft.IO;
+﻿using KestrelServer.Pools;
+using Microsoft.IO;
 using System;
 using System.Buffers;
 using System.Threading.Tasks;
 
-namespace KestrelServer
+namespace KestrelServer.Message
 {
     public partial class GMessage
     {
@@ -49,11 +50,11 @@ namespace KestrelServer
             {
                 payloadStream = StreamPool.GetStream();
                 Payload.Write(payloadStream);
-                packetLength = packetLength +(UInt32)payloadStream.Length + 1;
+                packetLength = packetLength + (UInt32)payloadStream.Length + 1;
             }
 
             writer.Write(Header);
-            writer.Write(Combine((Byte)flags, packetLength));
+            writer.Write(Combine(packetLength, (Byte)flags));
             writer.Write((UInt32)Action);
             if (GMessage.UseTimestamp) writer.Write(99999999);
             if (Parameters.Length > 0)
@@ -98,12 +99,9 @@ namespace KestrelServer
 
 
 
-        public static uint Combine(byte firstByte, uint remainingBytes)
+        internal static uint Combine(uint length, byte flags)
         {
-            // 限制剩余字节只占低 3 个字节
-            remainingBytes &= 0x00FFFFFF;
-            // 将第一个字节移至高 8 位，并与剩余字节合并
-            return ((uint)firstByte << 24) | (remainingBytes ^ 0xFFFFFF);
+            return (length << 8) | flags;
         }
 
 
