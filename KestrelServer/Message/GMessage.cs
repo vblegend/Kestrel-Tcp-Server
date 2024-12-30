@@ -155,8 +155,14 @@ namespace KestrelServer.Message
 
         public static UInt32 ReadLength(SequenceReader<byte> reader)
         {
+            if (reader.Length == 1)
+            {
+                reader.TryRead<Byte>(out var partHeader);
+                return partHeader == 71 ? 6 : UInt32.MaxValue;
+            }
             reader.TryRead<UInt16>(out var header);
             if (header != Header) return UInt32.MaxValue;
+            if (reader.Length < 6) return 6; // 不够读取
             reader.TryRead<UInt32>(out var combineValue);
             GMessage.Split(combineValue, out GMFlags _, out var packetLen);
             return packetLen;

@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Microsoft.AspNetCore.DataProtection;
+using System;
 using System.Buffers;
 using System.IO.Pipelines;
 using System.Net;
@@ -11,11 +12,12 @@ namespace KestrelServer.Tcp
     {
         private Socket? _socket;
         private PipeWriter? writer;
-        public String ConnectionId { get; set; }
 
+
+
+        public Int64 ConnectionId { get; set; }
+        public Object? Data { get; set; } = null;
         public EndPoint? RemoteEndPoint { get; set; }
-
-        public ISessionData Data { get; set; }
         public DateTime ConnectTime { get; set; }
 
         public void Close()
@@ -25,13 +27,23 @@ namespace KestrelServer.Tcp
         }
 
 
-        internal void Init(Socket socket, PipeWriter writer, DateTime now)
+        internal void Init(NetworkStream networkStream)
         {
-            this._socket = socket;
-            this.writer = writer;
-            this.RemoteEndPoint = _socket?.RemoteEndPoint;
-            this.ConnectTime = now;
+            this._socket = networkStream.Socket;
+            this.writer = PipeWriter.Create(networkStream);
+            this.RemoteEndPoint = _socket.RemoteEndPoint;
         }
+
+        internal void Clean()
+        {
+            this._socket = null;
+            this.writer = null;
+            this.RemoteEndPoint = null;
+            this.ConnectTime = default;
+            this.Data = null;
+            this.ConnectionId = 0;
+        }
+
 
         public void Write(ReadOnlySpan<byte> buffer)
         {

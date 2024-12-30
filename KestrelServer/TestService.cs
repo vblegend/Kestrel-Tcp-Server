@@ -7,6 +7,7 @@ using KestrelServer.Message;
 using KestrelServer.Pools;
 using Microsoft.Extensions.Logging;
 using System.Linq;
+using System.Diagnostics;
 
 
 namespace KestrelServer
@@ -15,10 +16,13 @@ namespace KestrelServer
     {
         private readonly GMessageParser messageParser;
         private readonly ILogger<TestService> logger;
-        public TestService(GMessageParser messageParser ,ILogger<TestService> _logger  )
+        private readonly TimeService timeService;
+
+        public TestService(GMessageParser messageParser ,ILogger<TestService> _logger,TimeService timeService  )
         {
             this.messageParser = messageParser;
-            this.logger = _logger;  
+            this.logger = _logger;
+            this.timeService = timeService;
         }
 
 

@@ -14,23 +14,17 @@ using Microsoft.Extensions.Logging;
 namespace KestrelServer
 {
 
-    public class MySessionData : ISessionData
-    {
-        public String UserName = "";
-    }
-
     public class TCPConnectionHandler : TcpListenerService, IHostedService
     {
         public Int64 count = 0;
         private readonly IPBlacklistTrie iPBlacklist;
-        private readonly UTCTimeService timeService;
+        private readonly TimeService timeService;
         private readonly GMessageParser messageParser;
         private readonly ILogger<TCPConnectionHandler> logger;
 
 
-        public TCPConnectionHandler(IPBlacklistTrie iPBlacklist, UTCTimeService timeService, GMessageParser messageParser, ILogger<TCPConnectionHandler> _logger) : base(_logger, timeService)
+        public TCPConnectionHandler(IPBlacklistTrie iPBlacklist, TimeService timeService, GMessageParser messageParser, ILogger<TCPConnectionHandler> _logger) : base(_logger, timeService, 1)
         {
-            this.MinimumPacketLength = GMessage.MinimumSize;
             this.timeService = timeService;
             this.iPBlacklist = iPBlacklist;
             this.messageParser = messageParser;
@@ -40,16 +34,15 @@ namespace KestrelServer
 
         public async Task StartAsync(CancellationToken cancellationToken)
         {
-            this.Listen(IPAddress.Any, 50000, cancellationToken);
-            logger.LogInformation($"TCP Server Pipeline Running On Port {50000}");
+            this.Listen(IPAddress.Any, 50000);
+            logger.LogInformation("TCP Server Listen: {0}", $"tcp://{IPAddress.Any}:{50000}");
             await Task.CompletedTask;
         }
 
         public async Task StopAsync(CancellationToken cancellationToken)
         {
-            this.Stop();
-            logger.LogInformation($"TCP Server Pipeline Stoped .");
-            await Task.CompletedTask;
+            await this.StopAsync();
+            logger.LogInformation($"TCP Server Stoped.");
         }
 
 
@@ -57,20 +50,16 @@ namespace KestrelServer
 
         protected override async Task<Boolean> OnConnected(IConnectionSession connection)
         {
-            if (connection.RemoteEndPoint is System.Net.IPEndPoint ipEndPoint)
-            {
-                var ipOfBytes = ipEndPoint.Address.GetAddressBytes();
-                if (this.iPBlacklist.IsBlocked(ipEndPoint.Address))
-                {
-                    logger.LogInformation($"Blocked Client Connect: {ipEndPoint.Address}");
-                    return false;
-                }
-            }
-            connection.Data = new MySessionData()
-            {
-                UserName = "root",
-            };
-            logger.LogInformation($"Client connected: {connection.ConnectionId} {connection.RemoteEndPoint} {connection.ConnectTime.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss")}");
+            //if (connection.RemoteEndPoint is IPEndPoint ipEndPoint)
+            //{
+            //    if (this.iPBlacklist.IsBlocked(ipEndPoint.Address))
+            //    {
+            //        logger.LogInformation($"Blocked Client Connect: {ipEndPoint.Address}");
+            //        return false;
+            //    }
+            //}
+
+            logger.LogInformation($"Client Connected: {connection.ConnectionId}, ClientIp: {connection.RemoteEndPoint}");
             await connection.SendAsync(GMessage.Create(1001, [111, 222, 333, 444], Encoding.UTF8.GetBytes(timeService.Now().ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss"))));
             return true;
         }
@@ -78,13 +67,13 @@ namespace KestrelServer
 
         protected override async Task OnClose(IConnectionSession connection)
         {
-            logger.LogInformation($"Client closed: {connection.ConnectionId}, ClientIp: {connection.RemoteEndPoint}, Username: {connection.Data}");
+            logger.LogInformation($"Client    Closed: {connection.ConnectionId}, ClientIp: {connection.RemoteEndPoint}");
             await Task.CompletedTask;
         }
 
         protected override async Task OnError(IConnectionSession connection, Exception ex)
         {
-            logger.LogError(ex, "???");
+            logger.LogError($"Client     Error: {connection.ConnectionId}, {ex.Message}");
             await Task.CompletedTask;
         }
 
@@ -102,22 +91,25 @@ namespace KestrelServer
 
 
 
-        protected override async Task OnReceive(IConnectionSession connection, ReadOnlySequence<Byte> buffer)
+        protected override async Task OnReceive(IConnectionSession session, ReadOnlySequence<Byte> buffer)
         {
             var result = messageParser.Parse(new SequenceReader<byte>(buffer), out GMessage message);
             if (result == ParseResult.Illicit)
             {
-                connection.Close();
+                await OnError(session, new Exception("检测到非法封包，即将关闭连接！"));
+                session.Close();
                 return;
             }
             if (result == ParseResult.Ok)
             {
-                if (++count % 1000 == 0)
+                count++;
+                var text = $"Received packet: {count}";
+                await session.WriteAsync(Encoding.UTF8.GetBytes(text));
+                if (count % 1000 == 0)
                 {
-                    var text = $"Received packet: {count}";
                     logger.LogInformation(text);
-                    await connection.WriteAsync(Encoding.UTF8.GetBytes(text));
                 }
+
             }
             message.Return();
         }

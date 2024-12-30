@@ -12,17 +12,22 @@ namespace KestrelServer.Tcp
 {
     public abstract class TcpListenerService
     {
-        protected UInt32 MinimumPacketLength = 0;
+        private Int64 _currentConnectionCounter;
+        private Int64 ConnectionIdSource;
+        private UInt32 MinimumPacketLength = 0;
         private TcpListener? listener;
-        private CancellationTokenSource listenCancelTokenSource = new CancellationTokenSource();
-        private CancellationTokenSource linkedCts;
         private readonly ILogger<TcpListenerService> logger;
-        private readonly UTCTimeService timeService;
+        private readonly TimeService timeService;
 
-        protected TcpListenerService(ILogger<TcpListenerService> _logger, UTCTimeService _timeService)
+        private CancellationTokenSource? listenCancelTokenSource = null;
+        private TaskCompletionSource? stopCompleted = null;
+
+
+        protected TcpListenerService(ILogger<TcpListenerService> _logger, TimeService _timeService, UInt32 minimumPacketLength = 0)
         {
             this.logger = _logger;
             this.timeService = _timeService;
+            this.MinimumPacketLength = minimumPacketLength;
         }
 
 
@@ -33,24 +38,31 @@ namespace KestrelServer.Tcp
         /// <param name="localAddress"></param>
         /// <param name="localPort"></param>
         /// <param name="cancellationToken"></param>
-        public void Listen(IPAddress localAddress, Int32 localPort, CancellationToken cancellationToken = default)
+        public void Listen(IPAddress localAddress, Int32 localPort)
         {
-            linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, listenCancelTokenSource.Token);
+            if (listenCancelTokenSource != null)
+            {
+                throw new Exception("The listener cannot work twice.");
+            }
+            listenCancelTokenSource = new CancellationTokenSource();
+            stopCompleted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             listener = new TcpListener(localAddress, localPort);
             listener.Start();
-            listener.BeginAcceptSocket(new AsyncCallback(HandleAccepted), linkedCts.Token);
-            logger.LogDebug("Listen TCP Server: {0}:{1}", localAddress, localPort);
+            listener.BeginAcceptSocket(new AsyncCallback(HandleAccepted), listenCancelTokenSource.Token);
+            logger.LogTrace("Listen TCP Server: {0}:{1}", localAddress, localPort);
         }
 
         private void HandleAccepted(IAsyncResult result)
         {
             try
             {
-                var linkedToken = (CancellationToken)result.AsyncState!;
-                if (linkedToken.IsCancellationRequested || listener == null) return;
-                Socket clientSocket = listener.EndAcceptSocket(result);
-                listener.BeginAcceptSocket(new AsyncCallback(HandleAccepted), linkedToken);
-                _ = OnConnectedAsync(clientSocket, linkedCts.Token);
+                var cancelToken = (CancellationToken)result.AsyncState!;
+                if (cancelToken.IsCancellationRequested) return;
+                Socket clientSocket = listener!.EndAcceptSocket(result);
+                _ = OnConnectedAsync(clientSocket, cancelToken);
+                if (cancelToken.IsCancellationRequested) return;
+                listener?.BeginAcceptSocket(new AsyncCallback(HandleAccepted), cancelToken);
+                //logger.LogDebug("Accepted Next");
             }
             catch (ObjectDisposedException)
             {
@@ -58,7 +70,7 @@ namespace KestrelServer.Tcp
             }
             catch (Exception ex)
             {
-                logger.LogDebug(ex, "Error in OnClientConnected.");
+
             }
 
         }
@@ -67,26 +79,37 @@ namespace KestrelServer.Tcp
         /// <summary>
         /// 停止监听端口并断开所有客户端连接
         /// </summary>
-        public void Stop()
+        public async Task StopAsync()
         {
-            listenCancelTokenSource.Cancel();
+            listenCancelTokenSource?.Cancel();
             if (listener != null)
             {
                 listener.Dispose();
                 listener = null;
             }
+            var count = Interlocked.Read(ref _currentConnectionCounter);
+            if (stopCompleted != null && count > 0)
+            {
+                await stopCompleted.Task;
+                stopCompleted = null;
+            }
+            listenCancelTokenSource = null;
         }
 
         private async Task OnConnectedAsync(Socket socket, CancellationToken cancellationToken)
         {
-            long minimumReadSize = MinimumPacketLength;
-            var networkStream = new NetworkStream(socket, ownsSocket: true);
-            var reader = PipeReader.Create(networkStream);
-            var writer = PipeWriter.Create(networkStream);
-            var session = new InternalSession();
-            session.Init(socket, writer, timeService.Now());
+            NetworkStream? networkStream = null;
+            InternalSession? session = null;
             try
             {
+                Interlocked.Increment(ref _currentConnectionCounter);
+                long minimumReadSize = MinimumPacketLength;
+                networkStream = new NetworkStream(socket, ownsSocket: true);
+                var reader = PipeReader.Create(networkStream);
+                session = SessionPool.Pool.Get();
+                session.ConnectionId = Interlocked.Increment(ref ConnectionIdSource);
+                session.ConnectTime = timeService.Now();
+                session.Init(networkStream);
                 var allowConnect = await this.OnConnected(session);
                 if (allowConnect)
                 {
@@ -111,18 +134,31 @@ namespace KestrelServer.Tcp
             }
             catch (OperationCanceledException)
             {
-                // 处理取消操作的异常逻辑 
-                logger.LogDebug("Listener Operation Canceled.");
             }
             catch (Exception ex)
             {
-                if (ex.InnerException is SocketException socketEx && socketEx.SocketErrorCode == SocketError.ConnectionReset)
+                if (ex.InnerException is SocketException socketEx)
                 {
+                    if (socketEx.SocketErrorCode == SocketError.ConnectionReset || socketEx.SocketErrorCode == SocketError.ConnectionAborted)
+                    {
+
+                    }
+                    else
+                    {
+                        if (session != null)
+                        {
+                            await this.OnError(session, ex);
+                        }
+                    }
                     // 客户端主动关闭
                 }
                 else
                 {
-                    await this.OnError(session, ex);
+                    if(session != null)
+                    {
+                        await this.OnError(session, ex);
+                    }
+             
                 }
             }
             finally
@@ -133,7 +169,19 @@ namespace KestrelServer.Tcp
                     await networkStream.DisposeAsync();
                     networkStream = null;
                 }
-                await this.OnClose(session);
+                if (session != null)
+                {
+                    await this.OnClose(session);
+                    SessionPool.Pool.Return(session);
+                }
+                if (Interlocked.Decrement(ref _currentConnectionCounter) == 0)
+                {
+                    if (this.listenCancelTokenSource != null && this.listenCancelTokenSource.IsCancellationRequested)
+                    {
+                        stopCompleted?.TrySetResult();
+                    }
+                }
+
             }
 
         }
