@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.DataProtection;
+using Microsoft.Extensions.ObjectPool;
 using System;
 using System.Buffers;
 using System.IO.Pipelines;
@@ -6,24 +7,54 @@ using System.Net;
 using System.Net.Sockets;
 using System.Threading.Tasks;
 
-namespace KestrelServer.Tcp
+namespace KestrelServer.Network
 {
-    public class InternalSession : IConnectionSession
+
+    internal class SessionPool
+    {
+        private class SessionPooledObjectPolicy : PooledObjectPolicy<InternalSession>
+        {
+            public override InternalSession Create()
+            {
+                return new InternalSession();
+            }
+
+            public override bool Return(InternalSession obj)
+            {
+                obj.Clean();
+                return true;
+            }
+        }
+
+
+        internal static ObjectPool<InternalSession> Pool = CreateObjectPool();
+
+        private static ObjectPool<InternalSession> CreateObjectPool()
+        {
+            //return new DisposableObjectPool<InternalSession>(new SessionPooledObjectPolicy(), MaximumRetained);
+            return new DefaultObjectPool<InternalSession>(new SessionPooledObjectPolicy(), 1024);
+        }
+
+    }
+
+    internal class InternalSession : IConnectionSession
     {
         private Socket? _socket;
         private PipeWriter? writer;
-
-
 
         public Int64 ConnectionId { get; set; }
         public Object? Data { get; set; } = null;
         public EndPoint? RemoteEndPoint { get; set; }
         public DateTime ConnectTime { get; set; }
 
-        public void Close()
+        public SessionShutdownCause CloseCause { get; private set; }
+
+
+        public void Close(SessionShutdownCause cause)
         {
             _socket?.Close();
             _socket = null;
+            CloseCause = cause;
         }
 
 

@@ -8,22 +8,22 @@ using System.IO.Pipelines;
 using Microsoft.Extensions.Logging;
 
 
-namespace KestrelServer.Tcp
+
+
+namespace KestrelServer.Network
 {
-    public abstract class TcpListenerService
+    public abstract class TCPServer : IPV4Socket
     {
         private Int64 _currentConnectionCounter;
         private Int64 ConnectionIdSource;
         private UInt32 MinimumPacketLength = 0;
-        private TcpListener? listener;
-        private readonly ILogger<TcpListenerService> logger;
+        private readonly ILogger<TCPServer> logger;
         private readonly TimeService timeService;
 
         private CancellationTokenSource? listenCancelTokenSource = null;
         private TaskCompletionSource? stopCompleted = null;
 
-
-        protected TcpListenerService(ILogger<TcpListenerService> _logger, TimeService _timeService, UInt32 minimumPacketLength = 0)
+        protected TCPServer(ILogger<TCPServer> _logger, TimeService _timeService, UInt32 minimumPacketLength = 0) : base()
         {
             this.logger = _logger;
             this.timeService = _timeService;
@@ -46,9 +46,10 @@ namespace KestrelServer.Tcp
             }
             listenCancelTokenSource = new CancellationTokenSource();
             stopCompleted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-            listener = new TcpListener(localAddress, localPort);
-            listener.Start();
-            listener.BeginAcceptSocket(new AsyncCallback(HandleAccepted), listenCancelTokenSource.Token);
+
+            socket.Bind(new IPEndPoint(localAddress, localPort));
+            socket.Listen(Int32.MaxValue);
+            socket.BeginAccept(new AsyncCallback(HandleAccepted), listenCancelTokenSource.Token);
             logger.LogTrace("Listen TCP Server: {0}:{1}", localAddress, localPort);
         }
 
@@ -58,11 +59,10 @@ namespace KestrelServer.Tcp
             {
                 var cancelToken = (CancellationToken)result.AsyncState!;
                 if (cancelToken.IsCancellationRequested) return;
-                Socket clientSocket = listener!.EndAcceptSocket(result);
+                Socket clientSocket = socket.EndAccept(result);
                 _ = OnConnectedAsync(clientSocket, cancelToken);
                 if (cancelToken.IsCancellationRequested) return;
-                listener?.BeginAcceptSocket(new AsyncCallback(HandleAccepted), cancelToken);
-                //logger.LogDebug("Accepted Next");
+                socket.BeginAccept(new AsyncCallback(HandleAccepted), cancelToken);
             }
             catch (ObjectDisposedException)
             {
@@ -70,7 +70,7 @@ namespace KestrelServer.Tcp
             }
             catch (Exception ex)
             {
-
+                logger.LogError(ex, $"Listener Error {ex.GetType().FullName}.");
             }
 
         }
@@ -82,11 +82,7 @@ namespace KestrelServer.Tcp
         public async Task StopAsync()
         {
             listenCancelTokenSource?.Cancel();
-            if (listener != null)
-            {
-                listener.Dispose();
-                listener = null;
-            }
+            base.Dispose();
             var count = Interlocked.Read(ref _currentConnectionCounter);
             if (stopCompleted != null && count > 0)
             {
@@ -100,10 +96,10 @@ namespace KestrelServer.Tcp
         {
             NetworkStream? networkStream = null;
             InternalSession? session = null;
+            long minimumReadSize = MinimumPacketLength;
             try
             {
                 Interlocked.Increment(ref _currentConnectionCounter);
-                long minimumReadSize = MinimumPacketLength;
                 networkStream = new NetworkStream(socket, ownsSocket: true);
                 var reader = PipeReader.Create(networkStream);
                 session = SessionPool.Pool.Get();
@@ -131,9 +127,14 @@ namespace KestrelServer.Tcp
                         minimumReadSize = MinimumPacketLength;
                     }
                 }
+                else
+                {
+                    session.Close(SessionShutdownCause.NONE);
+                }
             }
             catch (OperationCanceledException)
             {
+                session?.Close(SessionShutdownCause.SERVER_SHUTTING_DOWN);
             }
             catch (Exception ex)
             {
@@ -141,24 +142,17 @@ namespace KestrelServer.Tcp
                 {
                     if (socketEx.SocketErrorCode == SocketError.ConnectionReset || socketEx.SocketErrorCode == SocketError.ConnectionAborted)
                     {
-
+                        session?.Close(SessionShutdownCause.CLIENT_DISCONNECTED);
+                        // 客户端主动关闭
                     }
                     else
                     {
-                        if (session != null)
-                        {
-                            await this.OnError(session, ex);
-                        }
+                        if (session != null) await this.OnError(session, ex);
                     }
-                    // 客户端主动关闭
                 }
                 else
                 {
-                    if(session != null)
-                    {
-                        await this.OnError(session, ex);
-                    }
-             
+                    if (session != null) await this.OnError(session, ex);
                 }
             }
             finally
@@ -171,6 +165,7 @@ namespace KestrelServer.Tcp
                 }
                 if (session != null)
                 {
+
                     await this.OnClose(session);
                     SessionPool.Pool.Return(session);
                 }
@@ -220,8 +215,6 @@ namespace KestrelServer.Tcp
             await Task.CompletedTask;
         }
 
-
-
         /// <summary>
         /// 收到封包，验证封包并返回本次要读取的长度
         /// </summary>
@@ -243,10 +236,5 @@ namespace KestrelServer.Tcp
         {
             await Task.CompletedTask;
         }
-
-
-
-
-
     }
 }

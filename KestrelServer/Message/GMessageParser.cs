@@ -11,12 +11,14 @@ namespace KestrelServer.Message
         Ok = 2,
     }
 
+
     public class GMessageParser
     {
         private readonly GMPayloadResolver resolver;
         public GMessageParser(GMPayloadResolver resolver)
         {
             this.resolver = resolver;
+            if (resolver == null) this.resolver = new GMPayloadResolver();
         }
 
 

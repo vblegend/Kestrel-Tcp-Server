@@ -6,6 +6,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Serilog;
 using System;
+using System.Net;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -20,6 +21,8 @@ namespace KestrelServer
         private static CancellationTokenSource _cancellationSource = new CancellationTokenSource();
         public static async Task Main(string[] args)
         {
+
+
             var host = CreateHost(args);
             await host.RunAsync();
             host.Dispose();
@@ -77,7 +80,10 @@ namespace KestrelServer
         {
             configuration.MinimumLevel.Is(Serilog.Events.LogEventLevel.Debug);
             configuration.MinimumLevel.Override("Microsoft", Serilog.Events.LogEventLevel.Warning);
-            configuration.WriteTo.Console(outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss} [{Level:u4}] {Message:lj}{NewLine}{Exception}");//  [{SourceContext}]
+            configuration.WriteTo.Async(configure =>
+            {
+                configure.Console(outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss fff} [{Level:u4}] {Message:lj}{NewLine}{Exception}");//  [{SourceContext}]
+            });
             configuration.Enrich.FromLogContext();
         }
 
@@ -85,17 +91,23 @@ namespace KestrelServer
         private static void ConfigureServices(IServiceCollection services)
         {
             var ipBlock = new IPBlacklistTrie();
-            //ipBlock.Add("127.0.0.1");
-            //ipBlock.Add("192.168.1.1/24");
+            ipBlock.Add("127.0.0.1");
+            ipBlock.Add("192.168.1.1/24");
 
             services.AddSingleton<IPBlacklistTrie>(ipBlock);
             services.AddSingleton<GMPayloadResolver>();
             services.AddSingleton<GMessageParser>();
-            services.AddSingleton<TestService>();
-            services.AddHostedService(provider => provider.GetRequiredService<TestService>());
+
+
+
             services.AddTimeService();
             services.AddSingleton<TCPConnectionHandler>();
             services.AddHostedService(provider => provider.GetRequiredService<TCPConnectionHandler>());
+
+
+            services.AddSingleton<TestService>();
+            services.AddHostedService(provider => provider.GetRequiredService<TestService>());
+
         }
 
     }

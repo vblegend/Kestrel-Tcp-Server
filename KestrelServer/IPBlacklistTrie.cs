@@ -10,7 +10,11 @@ namespace KestrelServer
     {
         private class TrieNode
         {
-            public Dictionary<int, TrieNode> Children { get; } = new();
+
+            public TrieNode[] Children =  new TrieNode[31];
+
+
+            //public Dictionary<int, TrieNode> Children { get; } = new();
             public bool IsEndOfSegment { get; set; }
         }
 
@@ -28,7 +32,7 @@ namespace KestrelServer
             for (int i = 0; i < prefixLength; i++)
             {
                 int bit = GetBit(ipBytes, i);
-                if (!currentNode.Children.ContainsKey(bit))
+                if (currentNode.Children[bit] == null)
                 {
                     currentNode.Children[bit] = new TrieNode();
                 }
@@ -48,7 +52,7 @@ namespace KestrelServer
             for (int i = 0; i < ipBytes.Length * 8; i++)
             {
                 int bit = GetBit(ipBytes, i);
-                if (currentNode.Children.ContainsKey(bit))
+                if (currentNode.Children[bit] != null)
                 {
                     currentNode = currentNode.Children[bit];
                     if (currentNode.IsEndOfSegment) return true; // 已匹配

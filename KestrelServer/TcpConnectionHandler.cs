@@ -3,18 +3,18 @@ using System.Threading.Tasks;
 using System;
 
 using System.Text;
-using KestrelServer.Tcp;
 using Microsoft.Extensions.Hosting;
 using System.Threading;
 using System.Net;
 using KestrelServer.Message;
 using Microsoft.Extensions.Logging;
+using KestrelServer.Network;
 
 
 namespace KestrelServer
 {
 
-    public class TCPConnectionHandler : TcpListenerService, IHostedService
+    public class TCPConnectionHandler : TCPServer, IHostedService
     {
         public Int64 count = 0;
         private readonly IPBlacklistTrie iPBlacklist;
@@ -35,6 +35,10 @@ namespace KestrelServer
         public async Task StartAsync(CancellationToken cancellationToken)
         {
             this.Listen(IPAddress.Any, 50000);
+            //await this.StopAsync();
+            //this.Listen(IPAddress.Any, 50000);
+
+
             logger.LogInformation("TCP Server Listen: {0}", $"tcp://{IPAddress.Any}:{50000}");
             await Task.CompletedTask;
         }
@@ -45,10 +49,7 @@ namespace KestrelServer
             logger.LogInformation($"TCP Server Stoped.");
         }
 
-
-
-
-        protected override async Task<Boolean> OnConnected(IConnectionSession connection)
+        protected override async Task<Boolean> OnConnected(IConnectionSession session)
         {
             //if (connection.RemoteEndPoint is IPEndPoint ipEndPoint)
             //{
@@ -59,21 +60,21 @@ namespace KestrelServer
             //    }
             //}
 
-            logger.LogInformation($"Client Connected: {connection.ConnectionId}, ClientIp: {connection.RemoteEndPoint}");
-            await connection.SendAsync(GMessage.Create(1001, [111, 222, 333, 444], Encoding.UTF8.GetBytes(timeService.Now().ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss"))));
+            logger.LogInformation($"Client Connected: {session.ConnectionId}, ClientIp: {session.RemoteEndPoint}");
+            await session.SendFlushAsync(GMessage.Create(1920, new StringPayload(timeService.Now().ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss"))));
             return true;
         }
 
 
-        protected override async Task OnClose(IConnectionSession connection)
+        protected override async Task OnClose(IConnectionSession session)
         {
-            logger.LogInformation($"Client    Closed: {connection.ConnectionId}, ClientIp: {connection.RemoteEndPoint}");
+            logger.LogInformation($"Client    Closed: {session.ConnectionId}, ClientIp: {session.RemoteEndPoint}");
             await Task.CompletedTask;
         }
 
-        protected override async Task OnError(IConnectionSession connection, Exception ex)
+        protected override async Task OnError(IConnectionSession session, Exception ex)
         {
-            logger.LogError($"Client     Error: {connection.ConnectionId}, {ex.Message}");
+            logger.LogError($"Client     Error: {session.ConnectionId}, {ex.Message}");
             await Task.CompletedTask;
         }
 
@@ -84,7 +85,7 @@ namespace KestrelServer
             if (len == uint.MaxValue || len > 64 * 1024)
             {
                 await OnError(session, new Exception("检测到非法封包，即将关闭连接！"));
-                session.Close();
+                session.Close(SessionShutdownCause.CLIENT_ILLEGAL_DATA);
             }
             return len;
         }
@@ -97,19 +98,19 @@ namespace KestrelServer
             if (result == ParseResult.Illicit)
             {
                 await OnError(session, new Exception("检测到非法封包，即将关闭连接！"));
-                session.Close();
+                session.Close(SessionShutdownCause.CLIENT_ILLEGAL_DATA);
                 return;
             }
             if (result == ParseResult.Ok)
             {
                 count++;
                 var text = $"Received packet: {count}";
-                await session.WriteAsync(Encoding.UTF8.GetBytes(text));
+                await session.SendFlushAsync(GMessage.Create(1920, new StringPayload(text)));
                 if (count % 1000 == 0)
                 {
                     logger.LogInformation(text);
+                    //await session.FlushAsync();
                 }
-
             }
             message.Return();
         }

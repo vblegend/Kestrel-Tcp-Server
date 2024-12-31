@@ -2,9 +2,44 @@
 using System.Buffers;
 using System.Text;
 using System;
+using System.Runtime.InteropServices;
+
 
 namespace KestrelServer
 {
+
+    [StructLayout(LayoutKind.Auto)]
+    public struct StringPayload : IMessagePayload
+    {
+        public String Text = "Hello";
+
+        public StringPayload(String text)
+        {
+            this.Text = text;
+        }
+
+
+        public void Read(SequenceReader<byte> reader)
+        {
+            reader.TryReadString(out Text);
+        }
+
+
+        public void Write(IBufferWriter<byte> writer)
+        {
+            writer.Write(Text, Encoding.UTF8);
+        }
+
+
+        public override string ToString()
+        {
+            return Text;
+        }
+
+    }
+
+
+
     public struct TestClass : IMessagePayload
     {
         public Int32 X = 123;
