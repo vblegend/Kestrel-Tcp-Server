@@ -6,9 +6,6 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Serilog;
 using System;
-using System.Net;
-using System.Runtime.CompilerServices;
-using System.Threading;
 using System.Threading.Tasks;
 
 namespace KestrelServer
@@ -18,27 +15,12 @@ namespace KestrelServer
 
     public class Program
     {
-        private static CancellationTokenSource _cancellationSource = new CancellationTokenSource();
         public static async Task Main(string[] args)
         {
-
-
-            var host = CreateHost(args);
+            var host = CreateHostBuilder(args).Build();
             await host.RunAsync();
             host.Dispose();
             Console.ReadLine();
-        }
-
-
-
-
-
-
-        public static IHost CreateHost(string[] args)
-        {
-            var host = CreateHostBuilder(args).Build();
-            ConfigureLifetime(host);
-            return host;
         }
 
         public static IHostBuilder CreateHostBuilder(string[] args)
@@ -49,27 +31,6 @@ namespace KestrelServer
                  .ConfigureServices(ConfigureServices);
         }
 
-        public static void ConfigureLifetime(IHost host)
-        {
-            var lifetime = host.Services.GetRequiredService<IHostApplicationLifetime>();
-            var logger = host.Services.GetRequiredService<ILogger<Program>>();
-            lifetime.ApplicationStarted.Register(() =>
-            {
-                logger.LogInformation("Started..");
-            });
-            lifetime.ApplicationStopping.Register(() =>
-            {
-                logger.LogInformation("Shutting Down..");
-                //cancellationSource.Cancel(true);
-            });
-
-            lifetime.ApplicationStopped.Register(() =>
-            {
-                logger.LogInformation("Stopped..");
-            });
-        }
-
-
         private static void ConfigureLogging(ILoggingBuilder logging)
         {
             logging.ClearProviders();
@@ -78,7 +39,7 @@ namespace KestrelServer
 
         private static void ConfigureSerilog(HostBuilderContext context, LoggerConfiguration configuration)
         {
-            configuration.MinimumLevel.Is(Serilog.Events.LogEventLevel.Debug);
+            configuration.MinimumLevel.Is(Serilog.Events.LogEventLevel.Information);
             configuration.MinimumLevel.Override("Microsoft", Serilog.Events.LogEventLevel.Warning);
             configuration.WriteTo.Async(configure =>
             {
@@ -101,13 +62,14 @@ namespace KestrelServer
 
 
             services.AddTimeService();
-            services.AddSingleton<TCPConnectionHandler>();
-            services.AddHostedService(provider => provider.GetRequiredService<TCPConnectionHandler>());
+            services.AddSingleton<GMessageTCPServer>();
+            services.AddHostedService(provider => provider.GetRequiredService<GMessageTCPServer>());
 
 
             services.AddSingleton<TestService>();
             services.AddHostedService(provider => provider.GetRequiredService<TestService>());
 
+ 
         }
 
     }

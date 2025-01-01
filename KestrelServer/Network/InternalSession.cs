@@ -91,7 +91,7 @@ namespace KestrelServer.Network
             writer?.Write(buffer);
         }
 
-        public async Task WriteAsync(ArraySegment<byte> buffer)
+        public async ValueTask WriteAsync(ArraySegment<byte> buffer)
         {
             if (writer != null)
             {
@@ -99,7 +99,7 @@ namespace KestrelServer.Network
             }
         }
 
-        public async Task WriteAsync(ReadOnlyMemory<byte> buffer)
+        public async ValueTask WriteAsync(ReadOnlyMemory<byte> buffer)
         {
             if (writer != null)
             {
@@ -107,7 +107,7 @@ namespace KestrelServer.Network
             }
         }
 
-        public async Task FlushAsync()
+        public async ValueTask FlushAsync()
         {
             if (writer != null)
             {

@@ -7,12 +7,12 @@ namespace KestrelServer.Network
 {
     public interface IClientHandler
     {
-        Task OnConnection(TCPClient client);
-        Task OnClose(TCPClient client);
-        Task OnError(Exception exception);
-        async Task OnReceive(TCPClient client, ReadOnlySequence<Byte> data)
+        ValueTask OnConnection(TCPClient client);
+        ValueTask OnClose(TCPClient client);
+        ValueTask OnError(Exception exception);
+        async ValueTask OnReceive(TCPClient client, ReadOnlySequence<Byte> data)
         {
-            await Task.CompletedTask;
+            await ValueTask.CompletedTask;
         }
     }
 }

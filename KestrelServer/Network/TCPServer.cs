@@ -189,9 +189,9 @@ namespace KestrelServer.Network
         /// </summary>
         /// <param name="session"></param>
         /// <returns></returns>
-        protected virtual async Task<bool> OnConnected(IConnectionSession session)
+        protected virtual ValueTask<bool> OnConnected(IConnectionSession session)
         {
-            return await Task.FromResult(true);
+            return new ValueTask<bool>(true);
         }
 
         /// <summary>
@@ -199,9 +199,9 @@ namespace KestrelServer.Network
         /// </summary>
         /// <param name="session"></param>
         /// <returns></returns>
-        protected virtual async Task OnClose(IConnectionSession session)
+        protected virtual ValueTask OnClose(IConnectionSession session)
         {
-            await Task.CompletedTask;
+            return ValueTask.CompletedTask;
         }
 
         /// <summary>
@@ -210,31 +210,31 @@ namespace KestrelServer.Network
         /// <param name="session"></param>
         /// <param name="ex"></param>
         /// <returns></returns>
-        protected virtual async Task OnError(IConnectionSession session, Exception ex)
+        protected virtual ValueTask OnError(IConnectionSession session, Exception ex)
         {
-            await Task.CompletedTask;
+            return ValueTask.CompletedTask;
         }
 
         /// <summary>
-        /// 收到封包，验证封包并返回本次要读取的长度
+        /// 收到任意封包，进行自定义解析
         /// </summary>
         /// <param name="session"></param>
         /// <param name="sequence"></param>
         /// <returns></returns>
-        protected virtual async Task<UInt32> OnPacket(IConnectionSession session, ReadOnlySequence<Byte> sequence)
+        protected virtual ValueTask<UInt32> OnPacket(IConnectionSession session, ReadOnlySequence<Byte> sequence)
         {
-            return await Task.FromResult((UInt32)sequence.Length);
+            return new ValueTask<uint>((UInt32)sequence.Length);
         }
 
         /// <summary>
-        /// 收到封包，经过OnPacket验证的合法封包
+        /// 收到一个完整封包
         /// </summary>
         /// <param name="session"></param>
         /// <param name="sequence"></param>
         /// <returns></returns>
-        protected virtual async Task OnReceive(IConnectionSession session, ReadOnlySequence<byte> sequence)
+        protected virtual ValueTask OnReceive(IConnectionSession session, ReadOnlySequence<byte> sequence)
         {
-            await Task.CompletedTask;
+            return ValueTask.CompletedTask;
         }
     }
 }

@@ -9,6 +9,7 @@ using Microsoft.Extensions.Logging;
 using System.Linq;
 using System.Diagnostics;
 using KestrelServer.Network;
+using System.Threading.Tasks.Sources;
 
 
 namespace KestrelServer
@@ -21,7 +22,7 @@ namespace KestrelServer
         private readonly GMessageTCPClient client;
 
 
-        public TestService(GMessageParser messageParser, ILogger<TestService> _logger, TimeService timeService, TCPConnectionHandler tCP)
+        public TestService(GMessageParser messageParser, ILogger<TestService> _logger, TimeService timeService, GMessageTCPServer tCP)
         {
             this.messageParser = messageParser;
             this.logger = _logger;
@@ -29,66 +30,82 @@ namespace KestrelServer
             client = new GMessageTCPClient(this);
         }
 
-        public async Task OnClose(TCPClient client2)
+        public async ValueTask OnClose(TCPClient client2)
         {
             logger.LogInformation("客户端关闭。");
-            await Task.CompletedTask;
+            await ValueTask.CompletedTask;
         }
 
-        public async Task OnConnection(TCPClient client2)
+        public async ValueTask OnConnection(TCPClient client2)
         {
             logger.LogInformation("客户端与服务器连接成功。");
             await client.WriteFlushAsync(GMessage.Create(1024, [1, 2, 3, 4]));
         }
 
-        public async Task OnError(Exception exception)
+        public async ValueTask OnError(Exception exception)
         {
             logger.LogInformation("客户端异常。 {0}", exception);
-            await Task.CompletedTask;
+            await ValueTask.CompletedTask;
         }
 
-        public async Task OnMessage(GMessageTCPClient client, GMessage message)
+        public async ValueTask OnMessage(GMessageTCPClient client, GMessage message)
         {
-            logger.LogInformation("客户端收到消息。 {0} {1}", message.Action, message.Payload);
-            await Task.CompletedTask;
+            //logger.LogInformation("客户端收到消息。 {0} {1}", message.Action, message.Payload);
+            await ValueTask.CompletedTask;
         }
 
 
-        private async void sendMessage(Object? state)
+
+
+        private CancellationTokenSource StartSendMessage()
         {
-            Stopwatch stopwatch = Stopwatch.StartNew();
-            try
+            CancellationTokenSource cancelToken = new CancellationTokenSource();
+            ThreadPool.QueueUserWorkItem( async(e) =>
             {
-                for (int i = 0; i < 1000; i++)
+                while (!cancelToken.IsCancellationRequested)
                 {
-                    await client.WriteAsync(GMessage.Create(1024, [1, 2, 3, 4]));
+                    Stopwatch stopwatch = Stopwatch.StartNew();
+                    try
+                    {
+                        for (int i = 0; i < 1000; i++)
+                        {
+                            client.Write(GMessage.Create(1024, [1, 2, 3, 4]));
+                        }
+                        await client.FlushAsync();
+                    }
+                    catch (Exception _)
+                    {
+
+                    }
+                    finally
+                    {
+                        stopwatch.Stop();
+                    }
+                    Thread.Sleep(10);
                 }
-                await client.FlushAsync();
+            });
 
-            }
-            catch (Exception e)
-            {
+            return cancelToken;
 
-            }
-            finally
-            {
-                stopwatch.Stop();
-                logger.LogInformation($"Send 1000 Used {stopwatch.ElapsedMilliseconds}ms");
-            }
+
         }
 
-        Timer timer;
+        CancellationTokenSource sendToken;
         public async Task StartAsync(CancellationToken cancellationToken)
         {
-            await client.ConnectAsync("127.0.0.1", 50000, cancellationToken);
+            await client.ConnectAsync("192.168.1.20", 50000, cancellationToken);
 
+            //var s = new TaskCompletionSource<Int64>();
+            //s.SetResult(123);
+            //new ValueTask()
+            sendToken = StartSendMessage();
 
-            //timer = new Timer(sendMessage, null, 0, 100);
-            sendMessage(0);
-            GMessage gMessage = GMessage.Create(12345678, new TestClass());
+            //timer = new Timer(sendMessage, null, 0, 10);
+
+            GMessage gMessage = GMessage.Create(12345678, new SamplePlayload(1024));
             using (var stream = StreamPool.GetStream())
             {
-                await gMessage.WriteToAsync(stream);
+                gMessage.WriteTo(stream);
                 gMessage.Return();
                 var span = stream.GetBuffer();
 
@@ -105,6 +122,7 @@ namespace KestrelServer
 
         public async Task StopAsync(CancellationToken cancellationToken)
         {
+            sendToken.Cancel();
             logger.LogInformation("TestService.StopAsync()");
             await Task.CompletedTask;
         }

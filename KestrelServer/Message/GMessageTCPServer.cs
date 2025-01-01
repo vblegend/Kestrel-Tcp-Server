@@ -6,35 +6,34 @@ using System.Text;
 using Microsoft.Extensions.Hosting;
 using System.Threading;
 using System.Net;
-using KestrelServer.Message;
 using Microsoft.Extensions.Logging;
 using KestrelServer.Network;
 
 
-namespace KestrelServer
+namespace KestrelServer.Message
 {
 
-    public class TCPConnectionHandler : TCPServer, IHostedService
+    public class GMessageTCPServer : TCPServer, IHostedService
     {
-        public Int64 count = 0;
+        public long count = 0;
         private readonly IPBlacklistTrie iPBlacklist;
         private readonly TimeService timeService;
         private readonly GMessageParser messageParser;
-        private readonly ILogger<TCPConnectionHandler> logger;
+        private readonly ILogger<GMessageTCPServer> logger;
 
 
-        public TCPConnectionHandler(IPBlacklistTrie iPBlacklist, TimeService timeService, GMessageParser messageParser, ILogger<TCPConnectionHandler> _logger) : base(_logger, timeService, 1)
+        public GMessageTCPServer(IPBlacklistTrie iPBlacklist, TimeService timeService, GMessageParser messageParser, ILogger<GMessageTCPServer> _logger) : base(_logger, timeService, 1)
         {
             this.timeService = timeService;
             this.iPBlacklist = iPBlacklist;
             this.messageParser = messageParser;
-            this.logger = _logger;
+            logger = _logger;
         }
 
 
         public async Task StartAsync(CancellationToken cancellationToken)
         {
-            this.Listen(IPAddress.Any, 50000);
+            Listen(IPAddress.Any, 50000);
             //await this.StopAsync();
             //this.Listen(IPAddress.Any, 50000);
 
@@ -45,11 +44,11 @@ namespace KestrelServer
 
         public async Task StopAsync(CancellationToken cancellationToken)
         {
-            await this.StopAsync();
+            await StopAsync();
             logger.LogInformation($"TCP Server Stoped.");
         }
 
-        protected override async Task<Boolean> OnConnected(IConnectionSession session)
+        protected override async ValueTask<bool> OnConnected(IConnectionSession session)
         {
             //if (connection.RemoteEndPoint is IPEndPoint ipEndPoint)
             //{
@@ -61,25 +60,25 @@ namespace KestrelServer
             //}
 
             logger.LogInformation($"Client Connected: {session.ConnectionId}, ClientIp: {session.RemoteEndPoint}");
-            await session.SendFlushAsync(GMessage.Create(1920, new StringPayload(timeService.Now().ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss"))));
+            await session.WriteFlushAsync(GMessage.Create(1920, new StringPayload(timeService.Now().ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss"))));
             return true;
         }
 
 
-        protected override async Task OnClose(IConnectionSession session)
+        protected override async ValueTask OnClose(IConnectionSession session)
         {
             logger.LogInformation($"Client    Closed: {session.ConnectionId}, ClientIp: {session.RemoteEndPoint}");
-            await Task.CompletedTask;
+            await ValueTask.CompletedTask;
         }
 
-        protected override async Task OnError(IConnectionSession session, Exception ex)
+        protected override async ValueTask OnError(IConnectionSession session, Exception ex)
         {
             logger.LogError($"Client     Error: {session.ConnectionId}, {ex.Message}");
-            await Task.CompletedTask;
+            await ValueTask.CompletedTask;
         }
 
 
-        protected override async Task<UInt32> OnPacket(IConnectionSession session, ReadOnlySequence<Byte> sequence)
+        protected override async ValueTask<uint> OnPacket(IConnectionSession session, ReadOnlySequence<byte> sequence)
         {
             var len = GMessage.ReadLength(new SequenceReader<byte>(sequence));
             if (len == uint.MaxValue || len > 64 * 1024)
@@ -92,7 +91,7 @@ namespace KestrelServer
 
 
 
-        protected override async Task OnReceive(IConnectionSession session, ReadOnlySequence<Byte> buffer)
+        protected override async ValueTask OnReceive(IConnectionSession session, ReadOnlySequence<byte> buffer)
         {
             var result = messageParser.Parse(new SequenceReader<byte>(buffer), out GMessage message);
             if (result == ParseResult.Illicit)
@@ -104,12 +103,11 @@ namespace KestrelServer
             if (result == ParseResult.Ok)
             {
                 count++;
-                var text = $"Received packet: {count}";
-                await session.SendFlushAsync(GMessage.Create(1920, new StringPayload(text)));
-                if (count % 1000 == 0)
+                await session.WriteFlushAsync(GMessage.Create(1920, new SamplePlayload(count)));
+
+                if (count % 100000 == 0)
                 {
-                    logger.LogInformation(text);
-                    //await session.FlushAsync();
+                    logger.LogInformation("Received packet: {0}", count);
                 }
             }
             message.Return();

@@ -38,16 +38,67 @@ namespace KestrelServer.Network
 
     public interface IConnectionSession
     {
+
+        /// <summary>
+        /// 连接ID，递增，本次启动期间不会重复
+        /// </summary>
         public Int64 ConnectionId { get; }
+
+        /// <summary>
+        /// 客户端IP、端口
+        /// </summary>
         public EndPoint? RemoteEndPoint { get; }
+
+        /// <summary>
+        /// 用户自定义数据
+        /// </summary>
         public Object? Data {  get; set; }
+
+        /// <summary>
+        /// 客户端连接的时间戳
+        /// </summary>
         public DateTime ConnectTime { get; }
+
+        /// <summary>
+        /// 将要发送的数据写入发送缓冲区
+        /// </summary>
+        /// <param name="buffer"></param>
         void Write(ReadOnlySpan<byte> buffer);
+
+        /// <summary>
+        /// 将要发送的数据写入发送缓冲区
+        /// </summary>
+        /// <param name="buffer"></param>
         void Write(ReadOnlyMemory<byte> buffer);
+
+        /// <summary>
+        /// 将要发送的数据写入发送缓冲区
+        /// </summary>
+        /// <param name="buffer"></param>
         void Write(ArraySegment<byte> buffer);
-        Task WriteAsync(ArraySegment<byte> buffer);
-        Task WriteAsync(ReadOnlyMemory<byte> buffer);
-        Task FlushAsync();
+
+        /// <summary>
+        /// 将要发送的数据写入发送缓冲区并立即提交
+        /// </summary>
+        /// <param name="buffer"></param>
+        ValueTask WriteAsync(ArraySegment<byte> buffer);
+
+        /// <summary>
+        /// 将要发送的数据写入发送缓冲区并立即提交
+        /// </summary>
+        /// <param name="buffer"></param>
+        ValueTask WriteAsync(ReadOnlyMemory<byte> buffer);
+
+        /// <summary>
+        /// 将发送缓冲区数据立即提交
+        /// </summary>
+        /// <returns></returns>
+        ValueTask FlushAsync();
+
+        /// <summary>
+        /// 主动关闭Socket连接
+        /// </summary>
+        /// <param name="cause"></param>
         void Close(SessionShutdownCause cause = SessionShutdownCause.NONE);
 
     }

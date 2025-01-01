@@ -14,7 +14,7 @@ namespace KestrelServer.Network
         private Int32 MinimumPacketLength = 0;
         private CancellationTokenSource? cancelTokenSource = null;
         private NetworkStream? networkStream = null;
-        private PipeWriter? streamWriter = null;
+        protected PipeWriter? streamWriter = null;
         public TCPClient(IClientHandler clientAdapter) : base()
         {
             this.clientHandler = clientAdapter;
@@ -82,6 +82,7 @@ namespace KestrelServer.Network
                     minimumReadSize = MinimumPacketLength;
                 }
             }
+            catch (OperationCanceledException _) { }
             catch (Exception ex)
             {
                 await clientHandler.OnError(ex);
@@ -95,39 +96,78 @@ namespace KestrelServer.Network
             }
         }
 
+        /// <summary>
+        /// 将要发送的数据写入发送缓冲区
+        /// </summary>
+        /// <param name="buffer"></param>
         public void Write(ReadOnlySpan<byte> buffer)
         {
             streamWriter?.Write(buffer);
         }
+
+        /// <summary>
+        /// 将要发送的数据写入发送缓冲区
+        /// </summary>
+        /// <param name="buffer"></param>
         public void Write(ReadOnlyMemory<byte> buffer)
         {
             streamWriter?.Write(buffer.Span);
         }
+
+        /// <summary>
+        /// 将要发送的数据写入发送缓冲区
+        /// </summary>
+        /// <param name="buffer"></param>
         public void Write(ArraySegment<byte> buffer)
         {
             streamWriter?.Write(buffer);
         }
-        public async Task WriteAsync(ArraySegment<byte> buffer)
+
+        /// <summary>
+        /// 将要发送的数据写入发送缓冲区并立即提交
+        /// </summary>
+        /// <param name="buffer"></param>
+        public async ValueTask WriteAsync(ArraySegment<byte> buffer)
         {
             if (streamWriter != null) await streamWriter.WriteAsync(buffer);
         }
-        public async Task WriteAsync(ReadOnlyMemory<byte> buffer)
+
+        /// <summary>
+        /// 将要发送的数据写入发送缓冲区并立即提交
+        /// </summary>
+        /// <param name="buffer"></param>
+        public async ValueTask WriteAsync(ReadOnlyMemory<byte> buffer)
         {
             if (streamWriter != null) await streamWriter.WriteAsync(buffer);
         }
-        public async Task FlushAsync()
+
+        /// <summary>
+        /// 将发送缓冲区数据立即提交
+        /// </summary>
+        /// <param name="buffer"></param>
+        public async ValueTask FlushAsync()
         {
             if (streamWriter != null) await streamWriter.FlushAsync();
         }
 
-        protected virtual async Task<UInt32> OnPacket(ReadOnlySequence<Byte> buffer)
+        /// <summary>
+        /// 收到任意封包，进行自定义解析
+        /// </summary>
+        /// <param name="buffer"></param>
+        /// <returns>一个有效封包的长度</returns>
+        protected virtual ValueTask<UInt32> OnPacket(ReadOnlySequence<Byte> buffer)
         {
-            return await Task.FromResult((UInt32)buffer.Length);
+            return new ValueTask<UInt32>((UInt32)buffer.Length);
         }
 
-        protected virtual async Task OnReceive(ReadOnlySequence<Byte> data)
+        /// <summary>
+        /// 收到一个完整封包
+        /// </summary>
+        /// <param name="data"></param>
+        /// <returns></returns>
+        protected virtual ValueTask OnReceive(ReadOnlySequence<Byte> data)
         {
-            await clientHandler.OnReceive(this, data);
+            return clientHandler.OnReceive(this, data);
         }
 
         public override void Dispose()

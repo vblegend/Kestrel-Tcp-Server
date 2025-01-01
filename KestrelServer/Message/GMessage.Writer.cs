@@ -35,7 +35,7 @@ namespace KestrelServer.Message
         /// 0x?? - Data 可选
         /// ====================================================
         /// </summary>
-        public async Task WriteToAsync(IBufferWriter<byte> writer)
+        public void WriteTo(IBufferWriter<byte> writer)
         {
             //   BinaryWriter
             var flags = BitConverter.IsLittleEndian ? GMFlags.LittleEndian : GMFlags.None;
@@ -52,7 +52,6 @@ namespace KestrelServer.Message
                 Payload.Write(payloadStream);
                 packetLength = packetLength + (UInt32)payloadStream.Length + 1;
             }
-
             writer.Write(Header);
             writer.Write(Combine(packetLength, (Byte)flags));
             writer.Write((UInt32)Action);
@@ -69,10 +68,9 @@ namespace KestrelServer.Message
             {
                 writer.Write((Byte)(payloadStream.Length % 255));
                 payloadStream.Position = 0;
-                await payloadStream.CopyToAsync((RecyclableMemoryStream)writer);
+                payloadStream.CopyTo((RecyclableMemoryStream)writer);
                 payloadStream.Dispose();
             }
-            await Task.CompletedTask;
         }
 
 

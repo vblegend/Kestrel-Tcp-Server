@@ -8,6 +8,10 @@ using System.Runtime.InteropServices;
 namespace KestrelServer
 {
 
+
+
+
+
     [StructLayout(LayoutKind.Auto)]
     public struct StringPayload : IMessagePayload
     {
@@ -40,29 +44,24 @@ namespace KestrelServer
 
 
 
-    public struct TestClass : IMessagePayload
+    public struct SamplePlayload : IMessagePayload
     {
-        public Int32 X = 123;
-        public String Text = "Hello";
-        public Int32 Y = 321;
+        public Int64 X = 123;
 
-        public TestClass()
+        public SamplePlayload(Int64 X)
         {
+            this.X = X;
         }
 
         public void Read(SequenceReader<byte> reader)
         {
-            reader.TryRead<Int32>(out X);
-            reader.TryReadString(out Text);
-            reader.TryRead<Int32>(out Y);
+            reader.TryRead<Int64>(out X);
         }
 
 
         public void Write(IBufferWriter<byte> writer)
         {
             writer.Write(X);
-            writer.Write(Text, Encoding.UTF8);
-            writer.Write(Y);
         }
     }
 }

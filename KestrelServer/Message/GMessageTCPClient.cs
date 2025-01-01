@@ -9,7 +9,7 @@ namespace KestrelServer.Message
 {
     public interface IGMessageHandler : IClientHandler
     {
-        Task OnMessage(GMessageTCPClient client, GMessage message);
+        ValueTask OnMessage(GMessageTCPClient client, GMessage message);
     }
 
 
@@ -25,7 +25,7 @@ namespace KestrelServer.Message
         }
 
 
-        protected override async Task<uint> OnPacket(ReadOnlySequence<byte> buffer)
+        protected override async ValueTask<uint> OnPacket(ReadOnlySequence<byte> buffer)
         {
             var len = GMessage.ReadLength(new SequenceReader<byte>(buffer));
             if (len == uint.MaxValue || len > 64 * 1024)
@@ -36,7 +36,7 @@ namespace KestrelServer.Message
             return len;
         }
 
-        protected override async Task OnReceive(ReadOnlySequence<Byte> data)
+        protected override async ValueTask OnReceive(ReadOnlySequence<Byte> data)
         {
             var result = messageParser.Parse(new SequenceReader<byte>(data), out GMessage message);
             if (result == ParseResult.Illicit)
@@ -53,34 +53,49 @@ namespace KestrelServer.Message
         }
 
 
-
-        public async Task WriteAsync(GMessage message)
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="message"></param>
+        /// <returns></returns>
+        public void Write(GMessage message)
         {
-            using (var stream = StreamPool.GetStream())
+            if (streamWriter != null)
             {
-                await message.WriteToAsync(stream/* , context.Items["timeService"] */);
-                message.Return();
-                var sequence = stream.GetReadOnlySequence();
-                foreach (var item in sequence)
+                using (var stream = StreamPool.GetStream())
                 {
-                    Write(item.Span);
+                    message.WriteTo(stream);
+                    message.Return();
+                    var sequence = stream.GetReadOnlySequence();
+                    foreach (var item in sequence)
+                    {
+                        streamWriter.Write(item.Span);
+                    }
                 }
             }
         }
 
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="message"></param>
+        /// <returns></returns>
         public async Task WriteFlushAsync(GMessage message)
         {
-            using (var stream = StreamPool.GetStream())
+            if (streamWriter != null)
             {
-                await message.WriteToAsync(stream/* , context.Items["timeService"] */);
-                message.Return();
-                var sequence = stream.GetReadOnlySequence();
-                foreach (var item in sequence)
+                using (var stream = StreamPool.GetStream())
                 {
-                    Write(item.Span);
+                    message.WriteTo(stream);
+                    message.Return();
+                    var sequence = stream.GetReadOnlySequence();
+                    foreach (var item in sequence)
+                    {
+                        await streamWriter.WriteAsync(item);
+                    }
+                    await streamWriter.FlushAsync();
                 }
-                await FlushAsync();
             }
         }
 

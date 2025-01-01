@@ -4,10 +4,22 @@ using System;
 
 namespace KestrelServer.Message
 {
+    /// <summary>
+    /// 封包解析返回值
+    /// </summary>
     public enum ParseResult
     {
+        /// <summary>
+        /// 非法封包数据
+        /// </summary>
         Illicit = 0,
+        /// <summary>
+        /// 部分封包，粘包、不完整的
+        /// </summary>
         Partial = 1,
+        /// <summary>
+        /// 一个完整的封包
+        /// </summary>
         Ok = 2,
     }
 
@@ -51,7 +63,7 @@ namespace KestrelServer.Message
                 reader.TryRead<byte>(out var dataLen);
                 if (dataLen != reader.UnreadSequence.Length % 255)
                 {
-                    throw new Exception("损坏的数据包。");
+                    return ParseResult.Illicit;
                 }
                 var payload = resolver.Resolver(message.Action);
                 payload.Read(new SequenceReader<byte>(reader.UnreadSequence));
