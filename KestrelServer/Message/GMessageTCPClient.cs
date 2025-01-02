@@ -18,7 +18,7 @@ namespace KestrelServer.Message
     public class GMessageTCPClient : TCPClient
     {
         private readonly IGMessageHandler messageHandler;
-        private readonly GMessageParser messageParser = new GMessageParser(null);
+        private readonly GMessageParser messageParser = new GMessageParser();
         public GMessageTCPClient(IGMessageHandler clientAdapter) : base(clientAdapter)
         {
             this.messageHandler = clientAdapter;

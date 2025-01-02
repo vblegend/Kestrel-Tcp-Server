@@ -1,5 +1,7 @@
 ﻿using System;
+using System.Buffers;
 using System.Net;
+using System.Net.Sockets;
 using System.Threading.Tasks;
 
 namespace KestrelServer.Network
@@ -58,6 +60,11 @@ namespace KestrelServer.Network
         /// 客户端连接的时间戳
         /// </summary>
         public DateTime ConnectTime { get; }
+
+        /// <summary>
+        /// 获取原始的数据写入对象
+        /// </summary>
+        public IBufferWriter<byte> Writer { get;}
 
         /// <summary>
         /// 将要发送的数据写入发送缓冲区

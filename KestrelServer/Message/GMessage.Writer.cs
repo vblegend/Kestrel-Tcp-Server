@@ -38,11 +38,7 @@ namespace KestrelServer.Message
         public void WriteTo(IBufferWriter<byte> writer)
         {
             //   BinaryWriter
-            var flags = BitConverter.IsLittleEndian ? GMFlags.LittleEndian : GMFlags.None;
-            if (Parameters.Length > 0) flags |= GMFlags.HasParams;
-            if (GMessage.UseTimestamp) flags |= GMFlags.HasTimestamp;
-            if (Payload != null) flags |= GMFlags.HasData;
-
+            var flags = GMFlags.None;
             var packetLength = totalLength();
 
             RecyclableMemoryStream payloadStream = null;
@@ -54,7 +50,7 @@ namespace KestrelServer.Message
             }
             writer.Write(Header);
             writer.Write(Combine(packetLength, (Byte)flags));
-            writer.Write((UInt32)Action);
+            writer.Write(Action);
             if (GMessage.UseTimestamp) writer.Write(99999999);
             if (Parameters.Length > 0)
             {
@@ -79,7 +75,7 @@ namespace KestrelServer.Message
             UInt32 size = 0;
             size += sizeof(UInt16);  //HEADER
             size += sizeof(UInt32);  // FLAGES + TOTALLength
-            size += sizeof(UInt32);  // Action
+            size += sizeof(Int32);  // Action
             if (GMessage.UseTimestamp)
             {
                 size += sizeof(UInt32);  // Timestamp

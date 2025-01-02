@@ -60,7 +60,7 @@ namespace KestrelServer.Message
             //}
 
             logger.LogInformation($"Client Connected: {session.ConnectionId}, ClientIp: {session.RemoteEndPoint}");
-            await session.WriteFlushAsync(GMessage.Create(1920, new ExamplePlayload(DateTime.UtcNow.Ticks)));
+            await session.WriteFlushAsync(new ExampleMessage(DateTime.UtcNow.Ticks));
             return true;
         }
 
@@ -103,7 +103,7 @@ namespace KestrelServer.Message
             if (result == ParseResult.Ok)
             {
                 count++;
-                await session.WriteFlushAsync(GMessage.Create(1920, new ExamplePlayload(count)));
+                await session.WriteFlushAsync(new ExampleMessage(count));
 
                 if (count % 100000 == 0)
                 {

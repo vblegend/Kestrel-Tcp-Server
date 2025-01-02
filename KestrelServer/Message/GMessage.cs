@@ -8,29 +8,30 @@ using System.Text;
 namespace KestrelServer.Message
 {
     [Flags]
-    internal enum GMFlags : Byte
+    public enum GMFlags : Byte
     {
         None = 0b00000000,            // 普通的包
-        LittleEndian = 0b00000001,    // 小端序，否则大端序
-        HasParams = 0b00000010,      // 包含Action参数
-        HasData = 0b00000100,       // 包含数据区
-        Compressed = 0b00001000,   // 数据区被压缩了
-        HasTimestamp = 0b00010000,   // 包含时间戳
-        LargePacket = 0b00100000,   // 大封包，超过1Kb
+        SSSSS = 0b00000001,    // 小端序，否则大端序
+        Kind2 = 0b00000010,      // 包含Action参数
+        Kind3 = 0b00000100,       // 包含数据区
+        Kind4 = 0b00001000,   // 数据区被压缩了
+        LargePacket = 0b00010000,   // 包含时间戳
+        HasTimestamp = 0b00100000,   // 大封包，超过256字节
         Flag1 = 0b01000000,     // 64
         Flag2 = 0b10000000,    // 128
     }
 
 
-    public enum GAction : UInt32
+
+
+
+    public interface INetMessage
     {
 
-    }
-
-    public interface IMessagePayload
-    {
-        void Read(SequenceReader<byte> reader);
-        void Write(IBufferWriter<byte> writer);
+        public void Read(SequenceReader<byte> reader);
+        public void Write(IBufferWriter<byte> writer);
+        public void Reset();
+        public MessageKind Kind { get; }
     }
 
 
@@ -99,43 +100,49 @@ namespace KestrelServer.Message
         public static readonly UInt16 Header = 0x4D47;
         public static Boolean UseTimestamp = true;
         private Boolean _isReturn = false;
-        public UInt32 Action = 0;
+        public Int32 Action = 0;
         public UInt32 Timestamp = 0;
         public readonly GMParameters Parameters = new GMParameters();
-        public IMessagePayload? Payload = null;
+        public INetMessage? Payload = null;
 
-        public static GMessage Create(UInt32 action, Int32[] _params, Byte[] payload)
+        public static GMessage Create(MessageKind action, Int32[] _params, Byte[] payload)
         {
             var message = GMessage.Create();
-            message.Action = action;
+            message.Action = (Int32)action;
             message.Parameters.SetData(_params);
             //message.Payload.SetData(payload);
             return message;
         }
 
 
-
-        public static GMessage Create<T>(UInt32 action, T @object) where T : IMessagePayload
+        public static GMessage Create<T>(T @object) where T : INetMessage
         {
             var message = GMessage.Create();
-            message.Action = action;
+            message.Payload = @object;
+            return message;
+        }
+
+        public static GMessage Create<T>(MessageKind action, T @object) where T : INetMessage
+        {
+            var message = GMessage.Create();
+            message.Action = (Int32)action;
             message.Payload = @object;
             return message;
         }
 
 
-        public static GMessage Create(UInt32 action, params Int32[] _params)
+        public static GMessage Create(MessageKind action, params Int32[] _params)
         {
             var message = GMessage.Create();
-            message.Action = action;
+            message.Action = (Int32)action;
             message.Parameters.SetData(_params);
             return message;
         }
 
-        public static GMessage Create(UInt32 action)
+        public static GMessage Create(MessageKind action)
         {
             var message = GMessage.Create();
-            message.Action = action;
+            message.Action = (Int32)action;
             return message;
         }
 

@@ -7,6 +7,93 @@ namespace System.Buffers
 {
     public static class IBufferWriterExtensions
     {
+
+        public static void Write(this IBufferWriter<byte> writer, UInt32 value, Byte length)
+        {
+            // 根据指定的 length 字节数来写入值
+            if (length == 1)
+            {
+                // 1字节：只写入最低的8位
+                var span = writer.GetSpan(1);  // 获取1个字节的空间
+                span[0] = (byte)(value & 0xFF);  // 保留低8位
+                writer.Advance(1);  // 更新 writer 状态，表示已写入1个字节
+            }
+            else if (length == 2)
+            {
+                // 2字节：写入低16位
+                var span = writer.GetSpan(2);  // 获取2个字节的空间
+                span[0] = (byte)(value & 0xFF);        // 保留低8位
+                span[1] = (byte)((value >> 8) & 0xFF); // 保留高8位
+                writer.Advance(2);  // 更新 writer 状态，表示已写入2个字节
+            }
+            else if (length == 3)
+            {
+                // 3字节：写入低24位
+                var span = writer.GetSpan(3);  // 获取3个字节的空间
+                span[0] = (byte)(value & 0xFF);          // 低8位
+                span[1] = (byte)((value >> 8) & 0xFF);   // 中间8位
+                span[2] = (byte)((value >> 16) & 0xFF);  // 高8位
+                writer.Advance(3);  // 更新 writer 状态，表示已写入3个字节
+            }
+            else if (length == 4)
+            {
+                // 4字节：写入整个32位值
+                var span = writer.GetSpan(4);  // 获取4个字节的空间
+                span[0] = (byte)(value & 0xFF);          // 低8位
+                span[1] = (byte)((value >> 8) & 0xFF);   // 次低8位
+                span[2] = (byte)((value >> 16) & 0xFF);  // 次高8位
+                span[3] = (byte)((value >> 24) & 0xFF);  // 高8位
+                writer.Advance(4);  // 更新 writer 状态，表示已写入4个字节
+            }
+            else
+            {
+                throw new ArgumentException("Length must be 1, 2, 3, or 4.", nameof(length));
+            }
+        }
+
+        public static void Write(this IBufferWriter<byte> writer, Int32 value, Byte length)
+        {
+            // 根据指定的 length 字节数来写入值
+            if (length == 1)
+            {
+                // 1字节：只写入最低的8位
+                var span = writer.GetSpan(1);  // 获取1个字节的空间
+                span[0] = (byte)(value & 0xFF);  // 保留低8位
+                writer.Advance(1);  // 更新 writer 状态，表示已写入1个字节
+            }
+            else if (length == 2)
+            {
+                // 2字节：写入低16位
+                var span = writer.GetSpan(2);  // 获取2个字节的空间
+                span[0] = (byte)(value & 0xFF);        // 保留低8位
+                span[1] = (byte)((value >> 8) & 0xFF); // 保留高8位
+                writer.Advance(2);  // 更新 writer 状态，表示已写入2个字节
+            }
+            else if (length == 3)
+            {
+                // 3字节：写入低24位
+                var span = writer.GetSpan(3);  // 获取3个字节的空间
+                span[0] = (byte)(value & 0xFF);          // 低8位
+                span[1] = (byte)((value >> 8) & 0xFF);   // 中间8位
+                span[2] = (byte)((value >> 16) & 0xFF);  // 高8位
+                writer.Advance(3);  // 更新 writer 状态，表示已写入3个字节
+            }
+            else if (length == 4)
+            {
+                // 4字节：写入整个32位值
+                var span = writer.GetSpan(4);  // 获取4个字节的空间
+                span[0] = (byte)(value & 0xFF);          // 低8位
+                span[1] = (byte)((value >> 8) & 0xFF);   // 次低8位
+                span[2] = (byte)((value >> 16) & 0xFF);  // 次高8位
+                span[3] = (byte)((value >> 24) & 0xFF);  // 高8位
+                writer.Advance(4);  // 更新 writer 状态，表示已写入4个字节
+            }
+            else
+            {
+                throw new ArgumentException("Length must be 1, 2, 3, or 4.", nameof(length));
+            }
+        }
+
         public static void Write(this IBufferWriter<byte> writer, byte value)
         {
             writer.Write([value]);

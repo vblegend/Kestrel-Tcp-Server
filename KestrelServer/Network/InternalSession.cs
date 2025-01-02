@@ -49,6 +49,7 @@ namespace KestrelServer.Network
 
         public SessionShutdownCause CloseCause { get; private set; }
 
+        public IBufferWriter<byte> Writer => writer;
 
         public void Close(SessionShutdownCause cause)
         {

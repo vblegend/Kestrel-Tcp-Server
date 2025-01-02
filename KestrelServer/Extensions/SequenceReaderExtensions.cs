@@ -62,6 +62,20 @@ namespace System.Buffers
             return true;
         }
 
+        public static Boolean TryRead(this ref SequenceReader<byte> reader, byte length, out Int32 value)
+        {
+            value = 0;
+            if (reader.Remaining < length) return false;
+            var span = reader.UnreadSpan.Slice(0, length);
+            for (int i = 0; i < length; i++)
+            {
+                value |= span[i] << (8 * i);
+            }
+            reader.Advance(length);
+            return true;
+        }
+
+
 
 
     }

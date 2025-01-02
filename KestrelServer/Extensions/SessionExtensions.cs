@@ -48,5 +48,21 @@ namespace System.Buffers
                 await context.FlushAsync();
             }
         }
+
+
+
+
+
+        public static void Write(this IConnectionSession context, INetMessage message)
+        {
+            MessageBuilder.WriteTo(message, context.Writer);
+        }
+
+
+        public static async ValueTask WriteFlushAsync(this IConnectionSession context, INetMessage message)
+        {
+            MessageBuilder.WriteTo(message, context.Writer);
+            await context.FlushAsync();
+        }
     }
 }
