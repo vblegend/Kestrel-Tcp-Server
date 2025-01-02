@@ -43,7 +43,7 @@ namespace KestrelServer.Network
         private PipeWriter? writer;
 
         public Int64 ConnectionId { get; set; }
-        public Object? Data { get; set; } = null;
+        public Object?[] Datas { get; } = [null, null, null, null, null];
         public EndPoint? RemoteEndPoint { get; set; }
         public DateTime ConnectTime { get; set; }
 
@@ -71,7 +71,7 @@ namespace KestrelServer.Network
             this.writer = null;
             this.RemoteEndPoint = null;
             this.ConnectTime = default;
-            this.Data = null;
+            this.Datas[0] = this.Datas[1] = this.Datas[2] = this.Datas[3] = this.Datas[4] = null;
             this.ConnectionId = 0;
         }
 

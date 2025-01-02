@@ -9,7 +9,7 @@ namespace KestrelServer.Message
         public IMessagePayload Resolver(uint action)
         {
             //if (1920 == action) return new StringPayload();
-            return new SamplePlayload();
+            return new ExamplePlayload();
         }
 
 

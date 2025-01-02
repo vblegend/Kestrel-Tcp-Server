@@ -52,7 +52,7 @@ namespace KestrelServer.Network
         /// <summary>
         /// 用户自定义数据
         /// </summary>
-        public Object? Data {  get; set; }
+        public Object?[] Datas { get;}
 
         /// <summary>
         /// 客户端连接的时间戳

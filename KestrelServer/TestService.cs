@@ -10,6 +10,7 @@ using System.Linq;
 using System.Diagnostics;
 using KestrelServer.Network;
 using System.Threading.Tasks.Sources;
+using System.Reflection;
 
 
 namespace KestrelServer
@@ -60,7 +61,7 @@ namespace KestrelServer
         private CancellationTokenSource StartSendMessage()
         {
             CancellationTokenSource cancelToken = new CancellationTokenSource();
-            ThreadPool.QueueUserWorkItem( async(e) =>
+            ThreadPool.QueueUserWorkItem(async (e) =>
             {
                 while (!cancelToken.IsCancellationRequested)
                 {
@@ -90,19 +91,86 @@ namespace KestrelServer
 
         }
 
+
+        private void HeapTest(ObjectHeap<Object> heap)
+        {
+            for (int i = 0; i < 1000; i++)
+            {
+                var index = heap!.Put(i);
+                if (i % 5 == 0)
+                {
+                    heap.Take(index);
+                }
+            }
+
+        }
+
+
+
+
+
+
+
+        private GMessage[] Slots = new GMessage[200];
+
         CancellationTokenSource sendToken;
+
+
+
+        private void EnumClass()
+        {
+            // 获取当前 AppDomain 中所有加载的程序集
+            var assemblies = AppDomain.CurrentDomain.GetAssemblies();
+            // 查找实现 IGMessageProcessor<TPayload> 的所有类型
+            var processorTypes = assemblies.SelectMany(assembly => assembly.GetTypes()).Where(type => !type.IsAbstract && type.IsClass);
+            foreach (var type in processorTypes)
+            {
+                var kindAttribute = type.GetCustomAttribute<GMessageKind>();
+                if (kindAttribute == null) continue;
+                var genericInterface = type.GetInterfaces().FirstOrDefault(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IGMessageProcessor<>));
+                if (genericInterface == null) continue;
+                var payloadType = genericInterface.GetGenericArguments()[0];
+                if(payloadType.FullName == null) continue;
+                Console.WriteLine($"processor: {kindAttribute.Kind}    Processor: {type.FullName}, Payload Type: {payloadType.FullName}");
+            }
+        }
+
+
+
+
+
+
+
         public async Task StartAsync(CancellationToken cancellationToken)
         {
-            await client.ConnectAsync("192.168.1.20", 50000, cancellationToken);
+            await client.ConnectAsync("127.0.0.1", 50000, cancellationToken);
 
             //var s = new TaskCompletionSource<Int64>();
             //s.SetResult(123);
             //new ValueTask()
-            sendToken = StartSendMessage();
+
+
+            var heap = new ObjectHeap<Object>();
+            var sw = Stopwatch.StartNew();
+            HeapTest(heap);
+            sw.Stop();
+
+            Console.WriteLine(heap);
+
+            //sendToken = StartSendMessage();
+
+
+            EnumClass();
+
 
             //timer = new Timer(sendMessage, null, 0, 10);
 
-            GMessage gMessage = GMessage.Create(12345678, new SamplePlayload(1024));
+            GMessage gMessage = GMessage.Create(12345678, new ExamplePlayload(1024));
+
+
+            Interlocked.CompareExchange(ref Slots[1], gMessage, gMessage);
+
+
             using (var stream = StreamPool.GetStream())
             {
                 gMessage.WriteTo(stream);
