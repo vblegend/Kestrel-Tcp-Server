@@ -1,6 +1,7 @@
 ﻿using System.Buffers;
 using System;
 using System.Runtime.CompilerServices;
+using System.Reflection.PortableExecutable;
 
 
 namespace KestrelServer.Message
@@ -42,15 +43,15 @@ namespace KestrelServer.Message
             return 1;
         }
 
-        public ParseResult Parse(SequenceReader<byte> reader, out INetMessage message)
+        public ParseResult Parse(SequenceReader<byte> reader, out AbstractNetMessage message)
         {
             message = default;
             reader.TryRead<ushort>(out var header);
-            if (header != INetMessage.Header) return ParseResult.Illicit;
+            if (header != AbstractNetMessage.Header) return ParseResult.Illicit;
             reader.TryRead<GMFlags>(out var flags);
             reader.TryRead<UInt16>(out var packetLen);
             if (reader.Length < packetLen) return ParseResult.Partial;
-            
+
             var kl = GetKindLen(flags);
             reader.TryRead(kl, out Int32 kind);
             reader.TryRead(out Int32 time);
@@ -61,7 +62,14 @@ namespace KestrelServer.Message
             return ParseResult.Ok;
         }
 
-
+        public UInt32 ReadFullLength(SequenceReader<byte> reader)
+        {
+            reader.TryRead<ushort>(out var header);
+            if (header != AbstractNetMessage.Header) return UInt32.MaxValue;
+            reader.TryRead<GMFlags>(out var flags);
+            reader.TryRead<UInt16>(out var packetLen);
+            return packetLen;
+        }
 
     }
 }

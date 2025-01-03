@@ -41,7 +41,7 @@ namespace KestrelServer
         public async ValueTask OnConnection(TCPClient client2)
         {
             logger.LogInformation("客户端与服务器连接成功。");
-            await client.WriteFlushAsync(new ExampleMessage(251));
+            await client.WriteFlushAsync(MessageFactory.ExampleMessage(251));
         }
 
         public async ValueTask OnError(Exception exception)
@@ -50,8 +50,9 @@ namespace KestrelServer
             await ValueTask.CompletedTask;
         }
 
-        public async ValueTask OnMessage(GMessageTCPClient client, INetMessage message)
+        public async ValueTask OnMessage(GMessageTCPClient client, AbstractNetMessage message)
         {
+            message.Return();
             //logger.LogInformation("客户端收到消息。 {0} {1}", message.Action, message.Payload);
             await ValueTask.CompletedTask;
         }
@@ -71,7 +72,10 @@ namespace KestrelServer
                     {
                         for (int i = 0; i < 1000; i++)
                         {
-                            client.Write(new ExampleMessage(2048));
+                            var message = MessageFactory.Create<ExampleMessage>();
+                            message.X = 19201080;
+                            client.Write(message);
+                            message.Return();
                         }
                         await client.FlushAsync();
                     }
@@ -140,12 +144,6 @@ namespace KestrelServer
             //HeapTest(heap);
             //sw.Stop();
 
-
-            var v1 = Pool<ExampleMessage>.Shared.Get();
-            var v2 = Pool<GatewayMessage>.Shared.Get();
-
-            Console.WriteLine(v1);
-
             //Console.WriteLine(heap);
 
             sendToken = StartSendMessage();
@@ -155,21 +153,21 @@ namespace KestrelServer
 
             using (var stream = StreamPool.GetStream())
             {
-                MessageBuilder.WriteTo(new ExampleMessage(Int64.MaxValue), stream);
-
+                using (var writer = new MessageWriter(stream))
+                {
+                    writer.Write(MessageFactory.ExampleMessage(Int64.MaxValue));
+                }
                 var span = stream.GetBuffer();
-                var len = INetMessage.ReadFullLength(new SequenceReader<byte>(stream.GetReadOnlySequence()));
-
-
+                var len = messageParser.ReadFullLength(new SequenceReader<byte>(stream.GetReadOnlySequence()));
                 var array = span.Take((Int32)stream.Length).Select((e) => e.ToString("X2"));
                 var line = String.Join("", array);
                 logger.LogInformation(line);
 
 
 
-                //var reader = new SequenceReader<byte>(new ReadOnlySequence<byte>(stream.ToArray()));
-                //messageParser.Parse(reader, out var msg);
-                //msg.Return();
+                var reader = new SequenceReader<byte>(new ReadOnlySequence<byte>(stream.ToArray()));
+                messageParser.Parse(reader, out var msg);
+     
 
             }
             await Task.CompletedTask;

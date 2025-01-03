@@ -1,21 +1,11 @@
 ﻿using KestrelServer.Message;
 using System.Buffers;
-using System.Text;
-using System;
-using System.Runtime.InteropServices;
 using KestrelServer.Network;
+using System;
 
 
 namespace KestrelServer
 {
-
-    public enum MessageKind
-    {
-        None = 0,
-        Gateway = 1,
-        Example = 2,
-    }
-
 
 
 
@@ -29,81 +19,63 @@ namespace KestrelServer
         public Type PayloadType { get; private set; }
     }
 
-
     public interface IGMessageProcessor
     {
-
-        void Process(IConnectionSession session, INetMessage payload);
+        void Process(IConnectionSession session, AbstractNetMessage payload);
     }
-
-
-
-
 
     [MessageProcessor(typeof(ExampleMessage))]
     public class ExampleProcessor : IGMessageProcessor
     {
-        public void Process(IConnectionSession session, INetMessage payload)
+        public void Process(IConnectionSession session, AbstractNetMessage payload)
         {
             var s = payload as ExampleMessage;
         }
     }
 
 
-    public class ExampleMessage : INetMessage
+    [UseMessagePool<ExampleMessage>(128)]
+    public class ExampleMessage : AbstractNetMessage
     {
 
-
-
-        public Byte X = 123;
-
-
-        public ExampleMessage()
+        public Int64 X = 123;
+        public ExampleMessage() : base(MessageKind.Example)
         {
-            this.X = 0;
-        }
-
-        public ExampleMessage(Int64 X)
-        {
-            this.X = 255;
         }
 
 
-
-        public void Read(SequenceReader<byte> reader)
+        public override void Read(SequenceReader<byte> reader)
         {
-            reader.TryRead<Byte>(out X);
+            reader.TryRead<Int64>(out X);
         }
 
 
-        public void Write(IBufferWriter<byte> writer)
+        public override void Write(IBufferWriter<byte> writer)
         {
             writer.Write(X);
         }
 
-        public void Reset()
-        {
 
-        }
-
-        public MessageKind Kind => MessageKind.Example;
     }
 
 
     /// <summary>
     /// 
     /// </summary>
-
-    public class GatewayMessage : INetMessage
+    [UseMessagePool<GatewayMessage>(128)]
+    public class GatewayMessage : AbstractNetMessage
     {
 
 
         public Int32 ChannalId;
         public Int32 Action;
-        public INetMessage Payload;
+        public AbstractNetMessage Payload;
 
+        public GatewayMessage() : base(MessageKind.Gateway)
+        {
+        }
 
-        public void Read(SequenceReader<byte> reader)
+        public override void Read(SequenceReader<byte> reader)
         {
             reader.TryRead<Int32>(out ChannalId);
             reader.TryRead<Int32>(out Action);
@@ -112,19 +84,17 @@ namespace KestrelServer
         }
 
 
-        public void Write(IBufferWriter<byte> writer)
+        public override void Write(IBufferWriter<byte> writer)
         {
             writer.Write(ChannalId);
             writer.Write(Action);
             Payload.Write(writer);
         }
 
-        public void Reset()
+        public override void Reset()
         {
 
         }
-
-        public MessageKind Kind => MessageKind.Gateway;
     }
 
 }

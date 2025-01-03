@@ -2,25 +2,35 @@
 using Microsoft.IO;
 using System;
 using System.Buffers;
-using System.Numerics;
-using System.Reflection.PortableExecutable;
 using System.Runtime.CompilerServices;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace KestrelServer.Message
 {
-    public ref struct MessageBuilder
+    public ref struct MessageWriter: IDisposable
     {
         public static readonly UInt16 Header = 0x4D47;
 
         private static GMFlags[] KindFlags = [default, GMFlags.None, GMFlags.Flag2, GMFlags.Kind3, GMFlags.Kind4];
 
-        public static void WriteTo(INetMessage message, IBufferWriter<byte> writer)
+        private IBufferWriter<byte> _writer;
+
+        public MessageWriter(IBufferWriter<byte> writer)
+        {
+            this._writer = writer;
+        }
+
+
+
+
+
+
+
+        public void Write(AbstractNetMessage message)
         {
             using (RecyclableMemoryStream payloadStream = StreamPool.GetStream())
             {
                 GMFlags flags = GMFlags.None;
-                Int32 packetLength = 5+5;
+                Int32 packetLength = 5 + 5;
                 message.Write(payloadStream);
                 packetLength += (Int32)payloadStream.Length;
 
@@ -30,15 +40,14 @@ namespace KestrelServer.Message
                 packetLength += kl;
                 // 474D 00 0C00 02 FFE0F505 01 FF
                 // ==================================================
-                writer.Write(Header);                               // 2 
-                writer.Write((Byte)(flags));                        // 1
-                writer.Write((UInt16)packetLength);                 // 2
-                writer.Write((Int32)message.Kind, kl);             // kl
-                writer.Write(99999999);                          // 4
-                writer.Write((Byte)(payloadStream.Length % 255));  // 1
-                // 474D 00100000 02000000 FFE0F505 FF01
+                _writer.Write(Header);                               // 2 
+                _writer.Write((Byte)(flags));                        // 1
+                _writer.Write((UInt16)packetLength);                 // 2
+                _writer.Write((Int32)message.Kind, kl);             // kl
+                _writer.Write(99999999);                          // 4
+                _writer.Write((Byte)(payloadStream.Length % 255));  // 1
                 //writer.Write(payloadStream.GetReadOnlySequence());
-                WriteToBufferWriter(payloadStream, writer);
+                WriteToBufferWriter(payloadStream, _writer);
                 // ==================================================
             }
         }
@@ -74,5 +83,9 @@ namespace KestrelServer.Message
             return (length << 8) | flags;
         }
 
+        public void Dispose()
+        {
+            this._writer = null;
+        }
     }
 }

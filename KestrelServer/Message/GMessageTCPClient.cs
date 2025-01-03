@@ -9,7 +9,7 @@ namespace KestrelServer.Message
 {
     public interface IGMessageHandler : IClientHandler
     {
-        ValueTask OnMessage(GMessageTCPClient client, INetMessage message);
+        ValueTask OnMessage(GMessageTCPClient client, AbstractNetMessage message);
     }
 
 
@@ -27,7 +27,7 @@ namespace KestrelServer.Message
 
         protected override async ValueTask<uint> OnPacket(ReadOnlySequence<byte> buffer)
         {
-            var len = INetMessage.ReadFullLength(new SequenceReader<byte>(buffer));
+            var len = messageParser.ReadFullLength(new SequenceReader<byte>(buffer));
             if (len == uint.MaxValue || len > 64 * 1024)
             {
                 await messageHandler.OnError(new Exception("检测到非法封包，即将关闭连接！"));
@@ -38,7 +38,7 @@ namespace KestrelServer.Message
 
         protected override async ValueTask OnReceive(ReadOnlySequence<Byte> data)
         {
-            var result = messageParser.Parse(new SequenceReader<byte>(data), out INetMessage message);
+            var result = messageParser.Parse(new SequenceReader<byte>(data), out AbstractNetMessage message);
             if (result == ParseResult.Illicit)
             {
                 Close();
@@ -58,11 +58,14 @@ namespace KestrelServer.Message
         /// </summary>
         /// <param name="message"></param>
         /// <returns></returns>
-        public void Write(INetMessage message)
+        public void Write(AbstractNetMessage message)
         {
             if (streamWriter != null)
             {
-                MessageBuilder.WriteTo(message, streamWriter);
+                using (var writer = new MessageWriter(streamWriter))
+                {
+                    writer.Write(message);
+                }
             }
         }
 
@@ -72,11 +75,14 @@ namespace KestrelServer.Message
         /// </summary>
         /// <param name="message"></param>
         /// <returns></returns>
-        public async Task WriteFlushAsync(INetMessage message)
+        public async Task WriteFlushAsync(AbstractNetMessage message)
         {
             if (streamWriter != null)
             {
-                MessageBuilder.WriteTo(message, streamWriter);
+                using (var writer = new MessageWriter(streamWriter))
+                {
+                    writer.Write(message);
+                }
                 await streamWriter.FlushAsync();
 
             }

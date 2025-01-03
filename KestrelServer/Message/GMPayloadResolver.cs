@@ -13,7 +13,7 @@ namespace KestrelServer.Message
     {
         class ProcessCache
         {
-            public Func<INetMessage> Gen;
+            public Func<AbstractNetMessage> Gen;
             public IGMessageProcessor Processor;
         }
 
@@ -49,21 +49,31 @@ namespace KestrelServer.Message
                 //var genFunc = kindAttribute.PayloadType.CreateDefaultConstructor<IMessagePayload>();
                 //Keys.Add(kindAttribute.Value, new ProcessCache() { Gen = genFunc, Processor = processor });
                 //Console.WriteLine($"Register Processor: {kindAttribute.Kind}[{kindAttribute.Value}]  Payload Type: {kindAttribute.PayloadType.FullName}   Processor: {type.FullName}");
-                if (!type.GetInterfaces().Any(e => e == typeof(INetMessage))) continue;
-                var genFunc = type.CreateDefaultConstructor<INetMessage>();
-                var obj = genFunc();
-                Keys.Add((Int32)obj.Kind, genFunc);
-                obj = null;
+                if (!type.IsSubclassOf(typeof(AbstractNetMessage))) continue;
+
+                var attrubute = type.GetCustomAttribute<UsePoolProxyAttribute>();
+                if (attrubute != null) {
+                    var msg = attrubute.Proxy().Get();
+                    Keys.Add((Int32)msg.Kind, attrubute.Proxy().Get);
+                    msg.Return();
+                }
+                else
+                {
+                    var genFunc = type.CreateDefaultConstructor<AbstractNetMessage>();
+                    var obj = genFunc();
+                    Keys.Add((Int32)obj.Kind, genFunc);
+                    obj = null;
+                }
             }
         }
 
 
-        private readonly static Dictionary<Int32, Func<INetMessage>> Keys = new Dictionary<Int32, Func<INetMessage>>();
+        private readonly static Dictionary<Int32, Func<AbstractNetMessage>> Keys = new Dictionary<Int32, Func<AbstractNetMessage>>();
 
 
 
 
-        public INetMessage Resolver(int action)
+        public AbstractNetMessage Resolver(int action)
         {
             if (Keys.TryGetValue(action, out var genFunc))
             {
@@ -72,7 +82,7 @@ namespace KestrelServer.Message
 
 
             //if (1920 == action) return new StringPayload();
-            return new ExampleMessage(0);
+            throw new InvalidOperationException();
         }
 
 

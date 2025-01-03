@@ -8,15 +8,22 @@ namespace System.Buffers
 {
     public static class SessionExtensions
     {
-        public static void Write(this IConnectionSession context, INetMessage message)
+        public static void Write(this IConnectionSession context, AbstractNetMessage message)
         {
-            MessageBuilder.WriteTo(message, context.Writer);
+            using (var writer = new MessageWriter(context.Writer))
+            {
+                writer.Write(message);
+            }
+
         }
 
 
-        public static async ValueTask WriteFlushAsync(this IConnectionSession context, INetMessage message)
+        public static async ValueTask WriteFlushAsync(this IConnectionSession context, AbstractNetMessage message)
         {
-            MessageBuilder.WriteTo(message, context.Writer);
+            using (var writer = new MessageWriter(context.Writer))
+            {
+                writer.Write(message);
+            }
             await context.FlushAsync();
         }
     }
