@@ -9,7 +9,7 @@ namespace KestrelServer.Message
 {
     public interface IGMessageHandler : IClientHandler
     {
-        ValueTask OnMessage(GMessageTCPClient client, GMessage message);
+        ValueTask OnMessage(GMessageTCPClient client, INetMessage message);
     }
 
 
@@ -19,7 +19,7 @@ namespace KestrelServer.Message
     {
         private readonly IGMessageHandler messageHandler;
         private readonly GMessageParser messageParser = new GMessageParser();
-        public GMessageTCPClient(IGMessageHandler clientAdapter) : base(clientAdapter)
+        public GMessageTCPClient(IGMessageHandler clientAdapter) : base(clientAdapter, 5)
         {
             this.messageHandler = clientAdapter;
         }
@@ -27,7 +27,7 @@ namespace KestrelServer.Message
 
         protected override async ValueTask<uint> OnPacket(ReadOnlySequence<byte> buffer)
         {
-            var len = GMessage.ReadLength(new SequenceReader<byte>(buffer));
+            var len = INetMessage.ReadFullLength(new SequenceReader<byte>(buffer));
             if (len == uint.MaxValue || len > 64 * 1024)
             {
                 await messageHandler.OnError(new Exception("检测到非法封包，即将关闭连接！"));
@@ -38,7 +38,7 @@ namespace KestrelServer.Message
 
         protected override async ValueTask OnReceive(ReadOnlySequence<Byte> data)
         {
-            var result = messageParser.Parse(new SequenceReader<byte>(data), out GMessage message);
+            var result = messageParser.Parse(new SequenceReader<byte>(data), out INetMessage message);
             if (result == ParseResult.Illicit)
             {
                 Close();
@@ -58,20 +58,11 @@ namespace KestrelServer.Message
         /// </summary>
         /// <param name="message"></param>
         /// <returns></returns>
-        public void Write(GMessage message)
+        public void Write(INetMessage message)
         {
             if (streamWriter != null)
             {
-                using (var stream = StreamPool.GetStream())
-                {
-                    message.WriteTo(stream);
-                    message.Return();
-                    var sequence = stream.GetReadOnlySequence();
-                    foreach (var item in sequence)
-                    {
-                        streamWriter.Write(item.Span);
-                    }
-                }
+                MessageBuilder.WriteTo(message, streamWriter);
             }
         }
 
@@ -81,21 +72,13 @@ namespace KestrelServer.Message
         /// </summary>
         /// <param name="message"></param>
         /// <returns></returns>
-        public async Task WriteFlushAsync(GMessage message)
+        public async Task WriteFlushAsync(INetMessage message)
         {
             if (streamWriter != null)
             {
-                using (var stream = StreamPool.GetStream())
-                {
-                    message.WriteTo(stream);
-                    message.Return();
-                    var sequence = stream.GetReadOnlySequence();
-                    foreach (var item in sequence)
-                    {
-                        await streamWriter.WriteAsync(item);
-                    }
-                    await streamWriter.FlushAsync();
-                }
+                MessageBuilder.WriteTo(message, streamWriter);
+                await streamWriter.FlushAsync();
+
             }
         }
 

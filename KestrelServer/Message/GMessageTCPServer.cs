@@ -22,7 +22,7 @@ namespace KestrelServer.Message
         private readonly ILogger<GMessageTCPServer> logger;
 
 
-        public GMessageTCPServer(IPBlacklistTrie iPBlacklist, TimeService timeService, GMessageParser messageParser, ILogger<GMessageTCPServer> _logger) : base(_logger, timeService, 1)
+        public GMessageTCPServer(IPBlacklistTrie iPBlacklist, TimeService timeService, GMessageParser messageParser, ILogger<GMessageTCPServer> _logger) : base(_logger, timeService, 5)
         {
             this.timeService = timeService;
             this.iPBlacklist = iPBlacklist;
@@ -80,7 +80,7 @@ namespace KestrelServer.Message
 
         protected override async ValueTask<uint> OnPacket(IConnectionSession session, ReadOnlySequence<byte> sequence)
         {
-            var len = GMessage.ReadLength(new SequenceReader<byte>(sequence));
+            var len = INetMessage.ReadFullLength(new SequenceReader<byte>(sequence));
             if (len == uint.MaxValue || len > 64 * 1024)
             {
                 await OnError(session, new Exception("检测到非法封包，即将关闭连接！"));
@@ -93,7 +93,7 @@ namespace KestrelServer.Message
 
         protected override async ValueTask OnReceive(IConnectionSession session, ReadOnlySequence<byte> buffer)
         {
-            var result = messageParser.Parse(new SequenceReader<byte>(buffer), out GMessage message);
+            var result = messageParser.Parse(new SequenceReader<byte>(buffer), out INetMessage message);
             if (result == ParseResult.Illicit)
             {
                 await OnError(session, new Exception("检测到非法封包，即将关闭连接！"));
@@ -110,7 +110,7 @@ namespace KestrelServer.Message
                     logger.LogInformation("Received packet: {0}", count);
                 }
             }
-            message.Return();
+       
         }
 
 

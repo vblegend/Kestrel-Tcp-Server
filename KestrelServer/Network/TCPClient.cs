@@ -15,9 +15,10 @@ namespace KestrelServer.Network
         private CancellationTokenSource? cancelTokenSource = null;
         private NetworkStream? networkStream = null;
         protected PipeWriter? streamWriter = null;
-        public TCPClient(IClientHandler clientAdapter) : base()
+        public TCPClient(IClientHandler clientAdapter, Int32 minimumPacketLength) : base()
         {
             this.clientHandler = clientAdapter;
+            this.MinimumPacketLength = minimumPacketLength;
         }
 
 

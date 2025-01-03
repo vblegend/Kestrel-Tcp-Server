@@ -2,7 +2,10 @@
 using Microsoft.IO;
 using System;
 using System.Buffers;
+using System.Numerics;
 using System.Reflection.PortableExecutable;
+using System.Runtime.CompilerServices;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace KestrelServer.Message
 {
@@ -10,62 +13,48 @@ namespace KestrelServer.Message
     {
         public static readonly UInt16 Header = 0x4D47;
 
-        public MessageBuilder()
-        {
-
-
-
-
-        }
-
-
-
+        private static GMFlags[] KindFlags = [default, GMFlags.None, GMFlags.Flag2, GMFlags.Kind3, GMFlags.Kind4];
 
         public static void WriteTo(INetMessage message, IBufferWriter<byte> writer)
         {
             using (RecyclableMemoryStream payloadStream = StreamPool.GetStream())
             {
                 GMFlags flags = GMFlags.None;
+                Int32 packetLength = 5+5;
                 message.Write(payloadStream);
-                var packetLength = (UInt32)payloadStream.Length + 11;
-                Byte ll = 1;
-                Int32 kindValue = (Int32)message.Kind;
-                Byte kl = 1;
-                if (kindValue > 0xFF)
-                {
-                    kl = 2;
-                    flags |= GMFlags.Kind2;
-                }
-                else if (kindValue > 0xFFFF)
-                {
-                    kl = 3;
-                    flags |= GMFlags.Kind3;
-                }
-                else if (kindValue > 0xFFFFFF)
-                {
-                    kl = 4;
-                    flags |= GMFlags.Kind4;
-                }
+                packetLength += (Int32)payloadStream.Length;
 
-                if (packetLength > 250)
-                {
-                    ll = 2;
-                    flags |= GMFlags.LargePacket;
-                }
-    
+                Int32 kindValue = (Int32)message.Kind;
+                Byte kl = GetEffectiveBytes(kindValue);
+                flags |= KindFlags[kl];
+                packetLength += kl;
+                // 474D 00 0C00 02 FFE0F505 01 FF
                 // ==================================================
-                writer.Write(Header);
-                writer.Write((Byte)(flags));
-                writer.Write(packetLength, ll);
-                writer.Write((Int32)message.Kind, kl);
-                writer.Write(99999999);
-                writer.Write((Byte)(payloadStream.Length % 255));
+                writer.Write(Header);                               // 2 
+                writer.Write((Byte)(flags));                        // 1
+                writer.Write((UInt16)packetLength);                 // 2
+                writer.Write((Int32)message.Kind, kl);             // kl
+                writer.Write(99999999);                          // 4
+                writer.Write((Byte)(payloadStream.Length % 255));  // 1
                 // 474D 00100000 02000000 FFE0F505 FF01
                 //writer.Write(payloadStream.GetReadOnlySequence());
                 WriteToBufferWriter(payloadStream, writer);
                 // ==================================================
             }
         }
+
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Byte GetEffectiveBytes(int number)
+        {
+            if (number == 0) return 1; // 0 使用1字节
+            int absValue = Math.Abs(number);
+            if ((absValue & 0xFFFFFF00) == 0) return 1; // 1 字节
+            if ((absValue & 0xFFFF0000) == 0) return 2; // 2 字节
+            if ((absValue & 0xFF000000) == 0) return 3; // 3 字节
+            return 4; // 4 字节
+        }
+
 
         public static void WriteToBufferWriter(RecyclableMemoryStream stream, IBufferWriter<byte> writer)
         {

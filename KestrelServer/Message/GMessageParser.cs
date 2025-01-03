@@ -1,5 +1,6 @@
 ﻿using System.Buffers;
 using System;
+using System.Runtime.CompilerServices;
 
 
 namespace KestrelServer.Message
@@ -32,41 +33,31 @@ namespace KestrelServer.Message
             this.resolver = resolver ?? GMPayloadResolver.Default;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static Byte GetKindLen(GMFlags flags)
+        {
+            if ((flags & GMFlags.Kind4) == GMFlags.Kind4) return 4;
+            if ((flags & GMFlags.Kind3) == GMFlags.Kind3) return 3;
+            if ((flags & GMFlags.Kind2) == GMFlags.Kind2) return 2;
+            return 1;
+        }
 
-        public ParseResult Parse(SequenceReader<byte> reader, out GMessage message)
+        public ParseResult Parse(SequenceReader<byte> reader, out INetMessage message)
         {
             message = default;
             reader.TryRead<ushort>(out var header);
-            if (header != GMessage.Header) return ParseResult.Illicit;
-            reader.TryRead<uint>(out var combineValue);
-            GMessage.Split(combineValue, out GMFlags _flags, out var packetLen);
+            if (header != INetMessage.Header) return ParseResult.Illicit;
+            reader.TryRead<GMFlags>(out var flags);
+            reader.TryRead<UInt16>(out var packetLen);
             if (reader.Length < packetLen) return ParseResult.Partial;
-            message = GMessage.Create();
-            reader.TryRead(out message.Action);
-            if ((_flags & GMFlags.HasTimestamp) == GMFlags.HasTimestamp)
-            {
-                reader.TryRead(out message.Timestamp);
-            }
-            //if ((_flags & GMFlags.HasParams) == GMFlags.HasParams)
-            //{
-            //    reader.TryRead<byte>(out var paramsLen);
-            //    message.Parameters.Alloc(paramsLen);
-            //    for (int i = 0; i < paramsLen; i++)
-            //    {
-            //        reader.TryRead(out message.Parameters.Data[i]);
-            //    }
-            //}
-            //if ((_flags & GMFlags.HasData) == GMFlags.HasData)
-            //{
-            //    reader.TryRead<byte>(out var dataLen);
-            //    if (dataLen != reader.UnreadSequence.Length % 255)
-            //    {
-            //        return ParseResult.Illicit;
-            //    }
-            //    var payload = resolver.Resolver(message.Action);
-            //    payload.Read(new SequenceReader<byte>(reader.UnreadSequence));
-            //    message.Payload = payload;
-            //}
+            
+            var kl = GetKindLen(flags);
+            reader.TryRead(kl, out Int32 kind);
+            reader.TryRead(out Int32 time);
+            reader.TryRead<byte>(out var dataLen);
+            if (dataLen != reader.UnreadSequence.Length % 255) return ParseResult.Illicit;
+            message = resolver.Resolver(kind);
+            message.Read(new SequenceReader<byte>(reader.UnreadSequence));
             return ParseResult.Ok;
         }
 

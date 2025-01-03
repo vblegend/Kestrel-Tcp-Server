@@ -11,6 +11,7 @@ using System.Diagnostics;
 using KestrelServer.Network;
 using System.Threading.Tasks.Sources;
 using System.Reflection;
+using System.Numerics;
 
 
 namespace KestrelServer
@@ -40,7 +41,7 @@ namespace KestrelServer
         public async ValueTask OnConnection(TCPClient client2)
         {
             logger.LogInformation("客户端与服务器连接成功。");
-            await client.WriteFlushAsync(GMessage.Create(MessageKind.Example, [1, 2, 3, 4]));
+            await client.WriteFlushAsync(new ExampleMessage(251));
         }
 
         public async ValueTask OnError(Exception exception)
@@ -49,7 +50,7 @@ namespace KestrelServer
             await ValueTask.CompletedTask;
         }
 
-        public async ValueTask OnMessage(GMessageTCPClient client, GMessage message)
+        public async ValueTask OnMessage(GMessageTCPClient client, INetMessage message)
         {
             //logger.LogInformation("客户端收到消息。 {0} {1}", message.Action, message.Payload);
             await ValueTask.CompletedTask;
@@ -70,7 +71,7 @@ namespace KestrelServer
                     {
                         for (int i = 0; i < 1000; i++)
                         {
-                            client.Write(GMessage.Create(MessageKind.Example, [1, 2, 3, 4]));
+                            client.Write(new ExampleMessage(2048));
                         }
                         await client.FlushAsync();
                     }
@@ -113,17 +114,21 @@ namespace KestrelServer
 
 
 
-
-
-
-
-
+        static int GetEffectiveBytes(int number)
+        {
+            if (number == 0) return 1; // 0 使用1字节
+            int absValue = Math.Abs(number);
+            if ((absValue & 0xFFFFFF00) == 0) return 1; // 1 字节
+            if ((absValue & 0xFFFF0000) == 0) return 2; // 2 字节
+            if ((absValue & 0xFF000000) == 0) return 3; // 3 字节
+            return 4; // 4 字节
+        }
 
 
 
         public async Task StartAsync(CancellationToken cancellationToken)
         {
-            //await client.ConnectAsync("127.0.0.1", 50000, cancellationToken);
+            await client.ConnectAsync("127.0.0.1", 50000, cancellationToken);
 
             //var s = new TaskCompletionSource<Int64>();
             //s.SetResult(123);
@@ -135,9 +140,15 @@ namespace KestrelServer
             //HeapTest(heap);
             //sw.Stop();
 
+
+            var v1 = Pool<ExampleMessage>.Shared.Get();
+            var v2 = Pool<GatewayMessage>.Shared.Get();
+
+            Console.WriteLine(v1);
+
             //Console.WriteLine(heap);
 
-            //sendToken = StartSendMessage();
+            sendToken = StartSendMessage();
 
             //timer = new Timer(sendMessage, null, 0, 10);
 
@@ -147,9 +158,15 @@ namespace KestrelServer
                 MessageBuilder.WriteTo(new ExampleMessage(Int64.MaxValue), stream);
 
                 var span = stream.GetBuffer();
+                var len = INetMessage.ReadFullLength(new SequenceReader<byte>(stream.GetReadOnlySequence()));
+
+
                 var array = span.Take((Int32)stream.Length).Select((e) => e.ToString("X2"));
                 var line = String.Join("", array);
                 logger.LogInformation(line);
+
+
+
                 //var reader = new SequenceReader<byte>(new ReadOnlySequence<byte>(stream.ToArray()));
                 //messageParser.Parse(reader, out var msg);
                 //msg.Return();
