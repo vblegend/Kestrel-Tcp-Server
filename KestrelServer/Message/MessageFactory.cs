@@ -1,5 +1,5 @@
 ﻿using System;
-using System.Diagnostics.Metrics;
+
 
 namespace KestrelServer.Message
 {
@@ -8,7 +8,7 @@ namespace KestrelServer.Message
 
         public static T Create<T>() where T : AbstractNetMessage, new()
         {
-            return (T)MessagePool<T>.Proxy.Get();
+            return MessagePool<T>.Shared.Get();
         }
 
 

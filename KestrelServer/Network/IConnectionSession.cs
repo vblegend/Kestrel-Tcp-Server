@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Buffers;
 using System.Net;
-using System.Net.Sockets;
 using System.Threading.Tasks;
 
 namespace KestrelServer.Network
@@ -33,7 +32,7 @@ namespace KestrelServer.Network
         /// 客户端非法数据
         /// </summary>
         CLIENT_ILLEGAL_DATA = 4,
-        
+
     }
 
 
@@ -49,12 +48,12 @@ namespace KestrelServer.Network
         /// <summary>
         /// 客户端IP、端口
         /// </summary>
-        public EndPoint? RemoteEndPoint { get; }
+        public EndPoint RemoteEndPoint { get; }
 
         /// <summary>
         /// 用户自定义数据
         /// </summary>
-        public Object?[] Datas { get;}
+        public Object[] Datas { get; }
 
         /// <summary>
         /// 客户端连接的时间戳
@@ -64,7 +63,7 @@ namespace KestrelServer.Network
         /// <summary>
         /// 获取原始的数据写入对象
         /// </summary>
-        public IBufferWriter<byte> Writer { get;}
+        public IBufferWriter<byte> Writer { get; }
 
         /// <summary>
         /// 将要发送的数据写入发送缓冲区

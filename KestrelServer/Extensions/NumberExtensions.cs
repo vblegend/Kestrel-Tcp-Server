@@ -1,6 +1,6 @@
 ﻿using KestrelServer.Message;
-using System.Runtime.CompilerServices;
 using System;
+using System.Runtime.CompilerServices;
 
 namespace KestrelServer.Extensions
 {

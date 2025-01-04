@@ -1,9 +1,10 @@
-﻿using Microsoft.Extensions.ObjectPool;
-using System;
+﻿using System;
+using System.Collections.Concurrent;
+using System.Threading;
 
 namespace KestrelServer.Message
 {
-    public interface IMessagePoolProxy
+    public interface IMessagePool
     {
         /// <summary>
         /// 获取一个可复用的消息对象
@@ -17,70 +18,102 @@ namespace KestrelServer.Message
         public void Return(AbstractNetMessage message);
     }
 
-    public class MessagePool<T> where T : AbstractNetMessage, new()
+    /// <summary>
+    /// 泛型的消息池实现将AbstractNetMessage消息池化
+    /// </summary>
+    /// <typeparam name="TMessage"></typeparam>
+    public class MessagePool<TMessage> : IMessagePool where TMessage : AbstractNetMessage, new()
     {
+        private int _maxCapacity = 64;
+        private int _numItems;
 
-        internal class GMessagePooledObjectPolicy<T> : PooledObjectPolicy<T> where T : AbstractNetMessage, new()
-        {
-            public override T Create()
-            {
-                Console.WriteLine($"Create Message Object: {typeof(T).FullName}");
-                return new T();
-            }
+        private readonly ConcurrentQueue<TMessage> _items = new();
+        private TMessage _fastItem;
 
-            public override bool Return(T obj)
-            {
-                obj.ReturnFunc = null;
-                return true;
-            }
-        }
-
-        internal class MessagePoolProxy<TObject> : IMessagePoolProxy where TObject : AbstractNetMessage, new()
-        {
-            public AbstractNetMessage Get()
-            {
-                var s = MessagePool<TObject>.Shared.Get();
-                s.ReturnFunc = Return;
-                return s;
-            }
-
-            public void Return(AbstractNetMessage message)
-            {
-                MessagePool<TObject>.Shared.Return((TObject)message);
-            }
-        }
 
         /// <summary>
-        /// 原始的内存池对象
+        /// 消息池实例
         /// </summary>
-        private static readonly ObjectPool<T> Shared = CreateObjectPool();
+        public static readonly MessagePool<TMessage> Shared = new MessagePool<TMessage>();
 
         /// <summary>
-        /// 带有池Return注入的代理，用于工厂的对象创建
+        /// 消息对应的Kind
         /// </summary>
-        public static readonly IMessagePoolProxy Proxy = new MessagePoolProxy<T>();
+        public static readonly Int32 Kind;
+
 
 
         /// <summary>
         /// 设置消息池的最大容量，对象池中对象数量超过此值时Return将不会继续放回池子
         /// </summary>
         /// <param name="value"></param>
-        public static void SetPoolMaxCapacity(Int32 value)
+        public void SetCapacity(Int32 value)
         {
-            if(value <= 0) throw new ArgumentOutOfRangeException("Parameter value must be greater than 0");
-            var type = Shared.GetType();
-            var field = type.GetField("_maxCapacity", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!;
-            field.SetValue(Shared, value);
-            type = null;
-            field = null;
+            if (value <= 1) throw new ArgumentOutOfRangeException("Parameter value must be greater than 1");
+            _maxCapacity = value;
+            while (_numItems > _maxCapacity)
+            {
+                var item = Get();
+                item._returnFunc = null;
+                item = null;
+            }
+        }
+
+        private MessagePool() { }
+
+        /// <summary>
+        /// 从池中取出一个消息对象，如果池中没有消息对象则新创建
+        /// </summary>
+        /// <returns></returns>
+        public unsafe TMessage Get()
+        {
+            var item = _fastItem;
+            if (item == null || Interlocked.CompareExchange(ref _fastItem, null, item) != item)
+            {
+                if (_items.TryDequeue(out item))
+                {
+                    Interlocked.Decrement(ref _numItems);
+                }
+                else
+                {
+                    // no object available, so go get a brand new one
+                    item = new TMessage();
+                    fixed (Int32* ptr = &item.Kind) *ptr = Kind;
+                }
+            }
+            item._returnFunc = ((IMessagePool)this).Return;
+            return item;
         }
 
 
-        private static ObjectPool<T> CreateObjectPool()
+        /// <summary>
+        /// 将消息对象归还到池中
+        /// </summary>
+        /// <param name="obj"></param>
+        public void Return(TMessage obj)
         {
-            Console.WriteLine($"Create Pool {typeof(T).FullName}");
-            var provider = new DefaultObjectPoolProvider();
-            return provider.Create(new GMessagePooledObjectPolicy<T>());
+            obj._returnFunc = null;
+            if (_fastItem != null || Interlocked.CompareExchange(ref _fastItem, obj, null) != null)
+            {
+                if (Interlocked.Increment(ref _numItems) <= _maxCapacity)
+                {
+                    _items.Enqueue(obj);
+                    return;
+                }
+                // no room, clean up the count and drop the object on the floor
+                Interlocked.Decrement(ref _numItems);
+            }
+        }
+
+
+        AbstractNetMessage IMessagePool.Get()
+        {
+            return Get();
+        }
+
+        void IMessagePool.Return(AbstractNetMessage message)
+        {
+            Return((TMessage)message);
         }
 
     }

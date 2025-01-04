@@ -1,13 +1,11 @@
-﻿using System.Buffers;
-using System.Threading.Tasks;
-using System;
-
-using System.Text;
+﻿using KestrelServer.Network;
 using Microsoft.Extensions.Hosting;
-using System.Threading;
-using System.Net;
 using Microsoft.Extensions.Logging;
-using KestrelServer.Network;
+using System;
+using System.Buffers;
+using System.Net;
+using System.Threading;
+using System.Threading.Tasks;
 
 
 namespace KestrelServer.Message
@@ -90,7 +88,7 @@ namespace KestrelServer.Message
         }
 
 
-
+        DefaultMessageProcessor processor = new DefaultMessageProcessor();
         protected override async ValueTask OnReceive(IConnectionSession session, ReadOnlySequence<byte> buffer)
         {
             var result = messageParser.Parse(new SequenceReader<byte>(buffer), out AbstractNetMessage message);
@@ -102,7 +100,7 @@ namespace KestrelServer.Message
             }
             if (result == ParseResult.Ok)
             {
-     
+                processor.Process(session, message);
                 count++;
                 //await session.WriteFlushAsync(MessageFactory.ExampleMessage(count));
 
@@ -112,7 +110,7 @@ namespace KestrelServer.Message
                 }
                 message.Return();
             }
-       
+
         }
 
 

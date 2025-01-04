@@ -1,6 +1,6 @@
 ﻿
-using System.Buffers;
 using System;
+using System.Buffers;
 using System.Threading.Tasks;
 
 namespace KestrelServer.Network

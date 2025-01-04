@@ -4,7 +4,7 @@ using System.Net.Sockets;
 
 namespace KestrelServer.Network
 {
-    public class IPV4Socket :IDisposable
+    public class IPV4Socket : IDisposable
     {
         protected readonly Socket socket;
 
@@ -50,7 +50,7 @@ namespace KestrelServer.Network
 
         // Gets or sets the value of the connection's linger option.
         [DisallowNull]
-        public LingerOption? LingerState
+        public LingerOption LingerState
         {
             get { return socket.LingerState; }
             set { socket.LingerState = value!; }

@@ -39,7 +39,7 @@ namespace System.Buffers
 
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public unsafe static bool TryReadString(this ref SequenceReader<byte> reader, out string value, Encoding? encoding = null)
+        public unsafe static bool TryReadString(this ref SequenceReader<byte> reader, out string value, Encoding encoding = null)
         {
             encoding ??= Encoding.UTF8;
             reader.TryRead<int>(out var length);

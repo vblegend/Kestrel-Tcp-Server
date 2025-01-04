@@ -1,6 +1,4 @@
 ﻿using Microsoft.IO;
-using System;
-using System.IO;
 
 namespace KestrelServer.Pools
 {

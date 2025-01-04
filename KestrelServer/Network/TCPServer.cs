@@ -1,11 +1,11 @@
-﻿using System.Net.Sockets;
-using System.Net;
+﻿using Microsoft.Extensions.Logging;
 using System;
-using System.Threading;
-using System.Threading.Tasks;
 using System.Buffers;
 using System.IO.Pipelines;
-using Microsoft.Extensions.Logging;
+using System.Net;
+using System.Net.Sockets;
+using System.Threading;
+using System.Threading.Tasks;
 
 
 
@@ -20,8 +20,8 @@ namespace KestrelServer.Network
         private readonly ILogger<TCPServer> logger;
         private readonly TimeService timeService;
 
-        private CancellationTokenSource? listenCancelTokenSource = null;
-        private TaskCompletionSource? stopCompleted = null;
+        private CancellationTokenSource listenCancelTokenSource = null;
+        private TaskCompletionSource stopCompleted = null;
 
         protected TCPServer(ILogger<TCPServer> _logger, TimeService _timeService, UInt32 minimumPacketLength = 0) : base()
         {
@@ -94,8 +94,8 @@ namespace KestrelServer.Network
 
         private async Task OnConnectedAsync(Socket socket, CancellationToken cancellationToken)
         {
-            NetworkStream? networkStream = null;
-            InternalSession? session = null;
+            NetworkStream networkStream = null;
+            InternalSession session = null;
             long minimumReadSize = MinimumPacketLength;
             try
             {

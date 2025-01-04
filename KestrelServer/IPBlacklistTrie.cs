@@ -1,6 +1,4 @@
 ﻿using System.Net;
-using System;
-using System.Collections.Generic;
 
 namespace KestrelServer
 {
@@ -11,7 +9,7 @@ namespace KestrelServer
         private class TrieNode
         {
 
-            public TrieNode[] Children =  new TrieNode[31];
+            public TrieNode[] Children = new TrieNode[31];
 
 
             //public Dictionary<int, TrieNode> Children { get; } = new();
@@ -27,7 +25,7 @@ namespace KestrelServer
         {
             var parts = cidr.Split('/');
             var ipBytes = IPAddress.Parse(parts[0]).GetAddressBytes();
-            int prefixLength = parts.Length == 2 ?int.Parse(parts[1]) : 32;
+            int prefixLength = parts.Length == 2 ? int.Parse(parts[1]) : 32;
             var currentNode = _root;
             for (int i = 0; i < prefixLength; i++)
             {

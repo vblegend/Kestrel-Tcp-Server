@@ -10,22 +10,19 @@ namespace KestrelServer.Message
     public abstract class AbstractNetMessage
     {
         /// <summary>
-        /// 池子的归还函数
-        /// </summary>
-        internal Action<AbstractNetMessage>? ReturnFunc;
-
-        /// <summary>
         /// 消息头的定义魔法数
         /// </summary>
         public static readonly UInt16 Header = 0x4D47;
-        protected AbstractNetMessage(MessageKind kind)
-        {
-            this.Kind = kind;
-        }
+
         /// <summary>
         /// 获取消息的Kind
         /// </summary>
-        public readonly MessageKind Kind;
+        public readonly Int32 Kind;
+
+        /// <summary>
+        /// 池子的归还函数
+        /// </summary>
+        internal Action<AbstractNetMessage> _returnFunc;
 
         /// <summary>
         /// 从缓存读取消息内容
@@ -45,7 +42,7 @@ namespace KestrelServer.Message
         public void Return()
         {
             Reset();
-            if (ReturnFunc != null) ReturnFunc(this);
+            if (_returnFunc != null) _returnFunc(this);
         }
 
         /// <summary>

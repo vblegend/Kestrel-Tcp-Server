@@ -1,17 +1,14 @@
-﻿using Microsoft.Extensions.Hosting;
-using System.Buffers;
+﻿using KestrelServer.Message;
+using KestrelServer.Network;
+using KestrelServer.Pools;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using System;
+using System.Buffers;
+using System.Diagnostics;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using KestrelServer.Message;
-using KestrelServer.Pools;
-using Microsoft.Extensions.Logging;
-using System.Linq;
-using System.Diagnostics;
-using KestrelServer.Network;
-using System.Threading.Tasks.Sources;
-using System.Reflection;
-using System.Numerics;
 
 
 namespace KestrelServer
@@ -79,7 +76,7 @@ namespace KestrelServer
                         }
                         await client.FlushAsync();
                     }
-                    catch (Exception _)
+                    catch (Exception)
                     {
 
                     }
@@ -138,6 +135,13 @@ namespace KestrelServer
             //s.SetResult(123);
             //new ValueTask()
 
+            SnowflakeId snowflakeId = SnowflakeId.Generate(123);
+
+
+            Console.WriteLine(snowflakeId.UTCTime);
+            Console.WriteLine(snowflakeId.LocalTime);
+            
+
 
             //var heap = new ObjectHeap<Object>();
             //var sw = Stopwatch.StartNew();
@@ -167,7 +171,7 @@ namespace KestrelServer
 
                 var reader = new SequenceReader<byte>(new ReadOnlySequence<byte>(stream.ToArray()));
                 messageParser.Parse(reader, out var msg);
-     
+
 
             }
             await Task.CompletedTask;
@@ -175,7 +179,7 @@ namespace KestrelServer
 
         public async Task StopAsync(CancellationToken cancellationToken)
         {
-            sendToken.Cancel();
+            sendToken?.Cancel();
             logger.LogInformation("TestService.StopAsync()");
             await Task.CompletedTask;
         }

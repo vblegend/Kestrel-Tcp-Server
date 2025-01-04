@@ -69,7 +69,7 @@ namespace KestrelServer
             services.AddSingleton<TestService>();
             services.AddHostedService(provider => provider.GetRequiredService<TestService>());
 
- 
+
         }
 
     }

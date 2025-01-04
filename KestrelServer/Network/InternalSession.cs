@@ -1,5 +1,4 @@
-﻿using Microsoft.AspNetCore.DataProtection;
-using Microsoft.Extensions.ObjectPool;
+﻿using Microsoft.Extensions.ObjectPool;
 using System;
 using System.Buffers;
 using System.IO.Pipelines;
@@ -39,12 +38,12 @@ namespace KestrelServer.Network
 
     internal class InternalSession : IConnectionSession
     {
-        private Socket? _socket;
-        private PipeWriter? writer;
+        private Socket _socket;
+        private PipeWriter writer;
 
         public Int64 ConnectionId { get; set; }
-        public Object?[] Datas { get; } = [null, null, null, null, null];
-        public EndPoint? RemoteEndPoint { get; set; }
+        public Object[] Datas { get; } = [null, null, null, null, null];
+        public EndPoint RemoteEndPoint { get; set; }
         public DateTime ConnectTime { get; set; }
 
         public SessionShutdownCause CloseCause { get; private set; }

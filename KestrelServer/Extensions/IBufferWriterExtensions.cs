@@ -1,6 +1,5 @@
-﻿using System.Buffers.Binary;
-using Microsoft.IO;
-using System.Threading.Tasks;
+﻿using Microsoft.IO;
+using System.Buffers.Binary;
 using System.Text;
 
 namespace System.Buffers
@@ -175,7 +174,7 @@ namespace System.Buffers
         }
 
 
-        public static void Write(this IBufferWriter<byte> writer, string value, Encoding? encoding = null)
+        public static void Write(this IBufferWriter<byte> writer, string value, Encoding encoding = null)
         {
             encoding ??= Encoding.UTF8;
             int byteCount = encoding.GetByteCount(value);
@@ -183,6 +182,23 @@ namespace System.Buffers
             Span<byte> buffer = writer.GetSpan(byteCount);
             encoding.GetBytes(value, buffer);
             writer.Advance(byteCount);
+        }
+
+
+
+
+        public static void Write(this IBufferWriter<byte> writer, RecyclableMemoryStream stream)
+        {
+            if (stream.TryGetBuffer(out ArraySegment<byte> segment))
+            {
+                // 使用 ArraySegment 的方式直接写入
+                writer.Write(segment.AsSpan());
+            }
+            else
+            {
+                // Fallback：如果 TryGetBuffer 不支持，手动操作
+                writer.Write(stream.GetBuffer().AsSpan(0, (int)stream.Length));
+            }
         }
 
 

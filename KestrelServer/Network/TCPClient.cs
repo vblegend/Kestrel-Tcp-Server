@@ -1,10 +1,10 @@
-﻿using System.Buffers;
-using System;
+﻿using System;
+using System.Buffers;
+using System.IO.Pipelines;
 using System.Net;
 using System.Net.Sockets;
-using System.Threading.Tasks;
 using System.Threading;
-using System.IO.Pipelines;
+using System.Threading.Tasks;
 
 namespace KestrelServer.Network
 {
@@ -12,9 +12,9 @@ namespace KestrelServer.Network
     {
         private readonly IClientHandler clientHandler;
         private Int32 MinimumPacketLength = 0;
-        private CancellationTokenSource? cancelTokenSource = null;
-        private NetworkStream? networkStream = null;
-        protected PipeWriter? streamWriter = null;
+        private CancellationTokenSource cancelTokenSource = null;
+        private NetworkStream networkStream = null;
+        protected PipeWriter streamWriter = null;
         public TCPClient(IClientHandler clientAdapter, Int32 minimumPacketLength) : base()
         {
             this.clientHandler = clientAdapter;
@@ -83,7 +83,7 @@ namespace KestrelServer.Network
                     minimumReadSize = MinimumPacketLength;
                 }
             }
-            catch (OperationCanceledException _) { }
+            catch (OperationCanceledException) { }
             catch (Exception ex)
             {
                 await clientHandler.OnError(ex);

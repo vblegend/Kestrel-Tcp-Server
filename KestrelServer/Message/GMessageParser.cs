@@ -1,7 +1,6 @@
-﻿using System.Buffers;
-using System;
+﻿using System;
+using System.Buffers;
 using System.Runtime.CompilerServices;
-using System.Reflection.PortableExecutable;
 
 
 namespace KestrelServer.Message
@@ -29,7 +28,7 @@ namespace KestrelServer.Message
     public class GMessageParser
     {
         private readonly GMPayloadResolver resolver;
-        public GMessageParser(GMPayloadResolver? resolver = null)
+        public GMessageParser(GMPayloadResolver resolver = null)
         {
             this.resolver = resolver ?? GMPayloadResolver.Default;
         }
@@ -54,7 +53,7 @@ namespace KestrelServer.Message
 
             var kl = GetKindLen(flags);
             reader.TryRead(kl, out Int32 kind);
-            reader.TryRead(out Int32 time);
+            reader.TryRead(out UInt32 time);
             reader.TryRead<byte>(out var dataLen);
             if (dataLen != reader.UnreadSequence.Length % 255) return ParseResult.Illicit;
             message = resolver.Resolver(kind);

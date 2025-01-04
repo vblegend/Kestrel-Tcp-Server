@@ -1,5 +1,4 @@
 ﻿using System.Linq.Expressions;
-using System;
 
 namespace System
 {
@@ -8,7 +7,7 @@ namespace System
 
         public static Func<TObject> CreateDefaultConstructor<TObject>(this Type type)
         {
-            return Expression.Lambda<Func<TObject>>(Expression.New(type.GetConstructor([]))).Compile();
+            return Expression.Lambda<Func<TObject>>(Expression.New(type.GetConstructor([])!)).Compile();
         }
     }
 }
