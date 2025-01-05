@@ -21,7 +21,7 @@ namespace KestrelServer.Message
         /// </summary>
         /// <param name="kind">定义消息的Kind</param>
         /// <param name="poolCapacity">池容量，如果为0则禁用池</param>
-        public unsafe MessageAttribute(MessageKind kind, Int32 poolCapacity)
+        public unsafe MessageAttribute(MessageKind kind, Int32 poolCapacity = 0)
         {
             fixed (Int32* ptr = &MessagePool<TMessage>.Kind) *ptr = (Int32)kind;
             Getter = MessagePool<TMessage>.Shared.Get;

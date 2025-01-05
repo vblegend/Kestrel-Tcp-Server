@@ -23,6 +23,7 @@ namespace KestrelServer
             Console.ReadLine();
         }
 
+
         public static IHostBuilder CreateHostBuilder(string[] args)
         {
             return Host.CreateDefaultBuilder(args)

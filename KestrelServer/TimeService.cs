@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using System;
+using System.Diagnostics;
 
 namespace KestrelServer
 {
@@ -11,12 +12,15 @@ namespace KestrelServer
     {
         private TimeSpan LocalOffset = TimeZoneInfo.Local.BaseUtcOffset;
         private readonly long _baseTicks;       // 基准 UTC 时间的 Ticks 值
-        private readonly long _baseTickCount;  // 基准的 TickCount64 值
+        private readonly long _baseTimestamp;  // 基准时间的 Stopwatch 时间戳
+        private readonly double _tickFrequency; // 每个 Tick 的长度 (秒)
 
         public TimeService()
         {
-            _baseTicks = DateTime.UtcNow.Ticks;
-            _baseTickCount = Environment.TickCount64;
+            // 初始化基准值
+            _baseTimestamp = Stopwatch.GetTimestamp(); // 当前 Stopwatch 时间戳
+            _baseTicks = DateTime.UtcNow.Ticks; // 当前 UTC 时间的 Ticks
+            _tickFrequency = TimeSpan.TicksPerSecond / (double)Stopwatch.Frequency;
         }
 
         /// <summary>
@@ -24,8 +28,8 @@ namespace KestrelServer
         /// </summary>
         public DateTime UtcNow()
         {
-            long elapsedMilliseconds = Environment.TickCount64 - _baseTickCount;
-            long elapsedTicks = elapsedMilliseconds * TimeSpan.TicksPerMillisecond;
+            long currentTimestamp = Stopwatch.GetTimestamp();
+            long elapsedTicks = (long)((currentTimestamp - _baseTimestamp) * _tickFrequency);
             return new DateTime(_baseTicks + elapsedTicks, DateTimeKind.Utc);
         }
 
@@ -34,8 +38,8 @@ namespace KestrelServer
         /// </summary>
         public DateTime Now()
         {
-            long elapsedMilliseconds = Environment.TickCount64 - _baseTickCount;
-            long elapsedTicks = elapsedMilliseconds * TimeSpan.TicksPerMillisecond;
+            long currentTimestamp = Stopwatch.GetTimestamp();
+            long elapsedTicks = (long)((currentTimestamp - _baseTimestamp) * _tickFrequency);
             return new DateTime(_baseTicks + elapsedTicks + LocalOffset.Ticks, DateTimeKind.Local);
         }
     }

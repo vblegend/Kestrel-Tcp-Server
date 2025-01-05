@@ -5,7 +5,7 @@ namespace KestrelServer.Message
     [Flags]
     public enum GMFlags : Byte
     {
-        None = 0b00000000,            // Kind 1字节 | 
+        None = 0b00000000,             // Kind 1字节 | len 2字节
         Kind2 = 0b00000001,            // Kind 2字节
         Kind3 = 0b00000010,            // Kind 3字节
         Kind4 = 0b00000100,            // Kind 4字节

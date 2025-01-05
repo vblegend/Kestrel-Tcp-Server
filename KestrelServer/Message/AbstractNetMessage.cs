@@ -22,7 +22,7 @@ namespace KestrelServer.Message
         /// <summary>
         /// 池子的归还函数
         /// </summary>
-        internal Action<AbstractNetMessage> _returnFunc;
+        internal IMessagePool _pool;
 
         /// <summary>
         /// 从缓存读取消息内容
@@ -42,7 +42,7 @@ namespace KestrelServer.Message
         public void Return()
         {
             Reset();
-            if (_returnFunc != null) _returnFunc(this);
+            if (_pool != null) _pool.Return(this);
         }
 
         /// <summary>

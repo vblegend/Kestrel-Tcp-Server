@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Runtime.Intrinsics.X86;
 
 namespace KestrelServer
 {
@@ -6,6 +7,12 @@ namespace KestrelServer
     {
         private readonly Int64 m_value;
 
+        public static Func<DateTime> UtcNowFunc = ()=> DateTime.UtcNow;
+
+        public SnowflakeId()
+        {
+            this.m_value = 0;
+        }
         private SnowflakeId(Int64 value)
         {
             this.m_value = value;
@@ -13,30 +20,22 @@ namespace KestrelServer
 
         public override string ToString()
         {
-            return this.m_value.ToString("X").ToUpper();
+            return this.m_value.ToString("X").PadLeft(16,'0').ToUpper();
         }
 
         public Boolean IsEmpty
         {
             get
             {
-                return (Byte)((this.m_value >> 60) & 0xF) != 7;
+                return this.m_value ==0;
             }
         }
-
-        public Int32 type
-        {
-            get
-            {
-                return (Int32)((this.m_value >> 48) & 0x0FFF);
-            }
-        }
-
+        
         public Int32 Timestamp
         {
             get
             {
-                return (Int32)((this.m_value >> 16) & 0xFFFFFFFF);
+                return (Int32)((this.m_value >> 16) & 0xFFFFFFFFFFFFF);
             }
         }
 
@@ -44,7 +43,7 @@ namespace KestrelServer
         {
             get
             {
-                return STARTDATE_DEFINE.AddSeconds((this.m_value >> 16) & 0xFFFFFFFF);
+                return DateTime.UnixEpoch.AddMilliseconds((this.m_value >> 16) & 0xFFFFFFFFFFFFF);
             }
         }
 
@@ -52,7 +51,7 @@ namespace KestrelServer
         {
             get
             {
-                return TimeZoneInfo.ConvertTimeFromUtc(STARTDATE_DEFINE.AddSeconds((this.m_value >> 16) & 0xFFFFFFFF), TimeZoneInfo.Local);
+                return TimeZoneInfo.ConvertTimeFromUtc(DateTime.UnixEpoch.AddMilliseconds((this.m_value >> 16) & 0xFFFFFFFFFFFFF), TimeZoneInfo.Local);
             }
         }
 
@@ -60,7 +59,7 @@ namespace KestrelServer
         {
             get
             {
-                return (UInt16)(this.m_value & 0xFFFF);
+                return (UInt16)(this.m_value & 0xFFF);
             }
         }
 
@@ -115,29 +114,23 @@ namespace KestrelServer
         }
 
 
-
-
         #region Static 
 
 
-        private static readonly DateTime STARTDATE_DEFINE = new DateTime(2024, 1, 1, 12, 34, 56, DateTimeKind.Utc);
+        private static readonly DateTime STARTDATE_DEFINE = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
         private static long _lastTimestamp = -1L;
         private static long _sequence = 1L;
         private static readonly object _lock = new object();
 
 
-        public static SnowflakeId Generate(Int32 type)
+        public static SnowflakeId Generate()
         {
-            if (type < 0 || type > 0xFFF)
-            {
-                throw new ArgumentOutOfRangeException(nameof(type), $"Type must be between 0 and 0xFFF");
-            }
             lock (_lock)
             {
                 var timestamp = GetCurrentTimestamp();
                 if (_lastTimestamp == timestamp)
                 {
-                    _sequence = (_sequence + 1) & 0xFFFF;
+                    _sequence = (_sequence + 1) & 0xFFF;
                     if (_sequence == 0L)
                     {
                         timestamp = WaitNextMillis(_lastTimestamp);
@@ -148,21 +141,15 @@ namespace KestrelServer
                     _sequence = 1L;
                 }
                 _lastTimestamp = timestamp;
-                long id =
-                    ((long)0x7 << 60) |
-                    ((long)(type & 0xFFF) << 48) |
-                    (timestamp << 16) |
-                    _sequence;
+                long id = (timestamp << 12) |  _sequence;
                 return new SnowflakeId(id);
             }
-
-
         }
 
 
         private static long GetCurrentTimestamp()
         {
-            return (long)(DateTime.UtcNow - STARTDATE_DEFINE).TotalSeconds;
+            return (long)(UtcNowFunc() - STARTDATE_DEFINE).TotalMilliseconds;
         }
 
         private static long WaitNextMillis(long lastTimestamp)

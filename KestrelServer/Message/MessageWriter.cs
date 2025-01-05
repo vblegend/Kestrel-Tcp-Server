@@ -34,12 +34,12 @@ namespace KestrelServer.Message
                 packetLength += kl;
                 // 474D 00 0C00 02 FFE0F505 01 FF
                 // ==================================================
-                _writer.Write(Header);                               // 2 
-                _writer.Write((Byte)(flags));                        // 1
-                _writer.Write((UInt16)packetLength);                 // 2
-                _writer.Write(message.Kind, kl);                    // kl
-                _writer.Write(timeTicks);                          // 4
-                _writer.Write((Byte)(payloadStream.Length % 255));  // 1
+                _writer.Write(Header);                                 // 2 
+                _writer.Write((Byte)(flags));                          // 1
+                _writer.Write((UInt16)packetLength);                   // 2
+                _writer.Write(message.Kind, kl);                      // kl
+                _writer.Write(timeTicks);                            // 4
+                _writer.Write((Byte)(payloadStream.Length % 255));     // 1
                 _writer.Write(payloadStream);
                 // ==================================================
             }

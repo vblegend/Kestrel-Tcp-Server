@@ -5,7 +5,7 @@ using System.Buffers;
 
 namespace KestrelServer
 {
-    [Message<ExampleMessage>(MessageKind.Example, 128)]
+    [Message<ExampleMessage>(MessageKind.Example)]
     public class ExampleMessage : AbstractNetMessage
     {
         public Int64 X = 123;
@@ -28,7 +28,7 @@ namespace KestrelServer
     /// <summary>
     /// 
     /// </summary>
-    [Message<GatewayMessage>(MessageKind.Gateway, 125)]
+    [Message<GatewayMessage>(MessageKind.Gateway)]
     public class GatewayMessage : AbstractNetMessage
     {
         public Int32 ChannalId;

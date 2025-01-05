@@ -39,9 +39,8 @@ namespace KestrelServer.Message
             var result = messageParser.Parse(new SequenceReader<byte>(data), out AbstractNetMessage message);
             if (result == ParseResult.Illicit)
             {
-                Close();
                 await messageHandler.OnError(new Exception("检测到非法封包，即将关闭连接！"));
-                //session.Close(SessionShutdownCause.CLIENT_ILLEGAL_DATA);
+                Close();
                 return;
             }
             if (result == ParseResult.Ok)

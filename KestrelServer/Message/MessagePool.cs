@@ -1,10 +1,11 @@
 ﻿using System;
 using System.Collections.Concurrent;
+using System.Runtime.InteropServices;
 using System.Threading;
 
 namespace KestrelServer.Message
 {
-    public interface IMessagePool
+    internal interface IMessagePool
     {
         /// <summary>
         /// 获取一个可复用的消息对象
@@ -22,14 +23,13 @@ namespace KestrelServer.Message
     /// 泛型的消息池实现将AbstractNetMessage消息池化
     /// </summary>
     /// <typeparam name="TMessage"></typeparam>
-    public class MessagePool<TMessage> : IMessagePool where TMessage : AbstractNetMessage, new()
+    internal class MessagePool<TMessage> : IMessagePool where TMessage : AbstractNetMessage, new()
     {
-        private int _maxCapacity = 64;
+        private int _maxCapacity = Environment.ProcessorCount * 2;
         private int _numItems;
 
         private readonly ConcurrentQueue<TMessage> _items = new();
         private TMessage _fastItem;
-
 
         /// <summary>
         /// 消息池实例
@@ -54,7 +54,7 @@ namespace KestrelServer.Message
             while (_numItems > _maxCapacity)
             {
                 var item = Get();
-                item._returnFunc = null;
+                item._pool = null;
                 item = null;
             }
         }
@@ -81,7 +81,7 @@ namespace KestrelServer.Message
                     fixed (Int32* ptr = &item.Kind) *ptr = Kind;
                 }
             }
-            item._returnFunc = ((IMessagePool)this).Return;
+            item._pool = this;
             return item;
         }
 
@@ -92,7 +92,7 @@ namespace KestrelServer.Message
         /// <param name="obj"></param>
         public void Return(TMessage obj)
         {
-            obj._returnFunc = null;
+            obj._pool = null;
             if (_fastItem != null || Interlocked.CompareExchange(ref _fastItem, obj, null) != null)
             {
                 if (Interlocked.Increment(ref _numItems) <= _maxCapacity)

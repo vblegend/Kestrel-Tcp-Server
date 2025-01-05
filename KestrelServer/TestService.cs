@@ -5,6 +5,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Buffers;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading;
@@ -27,30 +28,31 @@ namespace KestrelServer
             this.logger = _logger;
             this.timeService = timeService;
             client = new GMessageTCPClient(this);
+            SnowflakeId.UtcNowFunc = timeService.UtcNow;
         }
 
-        public async ValueTask OnClose(TCPClient client2)
+        async ValueTask IGMessageHandler.OnMessage(GMessageTCPClient client, AbstractNetMessage message)
         {
-            logger.LogInformation("客户端关闭。");
+            message.Return();
+            //logger.LogInformation("客户端收到消息。 {0} {1}", message.Action, message.Payload);
             await ValueTask.CompletedTask;
         }
 
-        public async ValueTask OnConnection(TCPClient client2)
+        async ValueTask IClientHandler.OnConnection(TCPClient client2)
         {
             logger.LogInformation("客户端与服务器连接成功。");
             await client.WriteFlushAsync(MessageFactory.ExampleMessage(251));
         }
 
-        public async ValueTask OnError(Exception exception)
+        async ValueTask IClientHandler.OnClose(TCPClient client)
         {
-            logger.LogInformation("客户端异常。 {0}", exception);
+            logger.LogInformation("客户端关闭。");
             await ValueTask.CompletedTask;
         }
 
-        public async ValueTask OnMessage(GMessageTCPClient client, AbstractNetMessage message)
+        async ValueTask IClientHandler.OnError(Exception exception)
         {
-            message.Return();
-            //logger.LogInformation("客户端收到消息。 {0} {1}", message.Action, message.Payload);
+            logger.LogInformation("客户端异常。 {0}", exception);
             await ValueTask.CompletedTask;
         }
 
@@ -89,42 +91,9 @@ namespace KestrelServer
             });
 
             return cancelToken;
-
-
         }
-
-
-        private void HeapTest(ObjectHeap<Object> heap)
-        {
-            for (int i = 0; i < 1000; i++)
-            {
-                var index = heap!.Put(i);
-                if (i % 5 == 0)
-                {
-                    heap.Take(index);
-                }
-            }
-
-        }
-
-
-
-
 
         CancellationTokenSource sendToken;
-
-
-
-        static int GetEffectiveBytes(int number)
-        {
-            if (number == 0) return 1; // 0 使用1字节
-            int absValue = Math.Abs(number);
-            if ((absValue & 0xFFFFFF00) == 0) return 1; // 1 字节
-            if ((absValue & 0xFFFF0000) == 0) return 2; // 2 字节
-            if ((absValue & 0xFF000000) == 0) return 3; // 3 字节
-            return 4; // 4 字节
-        }
-
 
 
         public async Task StartAsync(CancellationToken cancellationToken)
@@ -134,20 +103,10 @@ namespace KestrelServer
             //var s = new TaskCompletionSource<Int64>();
             //s.SetResult(123);
             //new ValueTask()
-
-            SnowflakeId snowflakeId = SnowflakeId.Generate(123);
-
-
-            Console.WriteLine(snowflakeId.UTCTime);
-            Console.WriteLine(snowflakeId.LocalTime);
-            
-
-
             //var heap = new ObjectHeap<Object>();
             //var sw = Stopwatch.StartNew();
             //HeapTest(heap);
             //sw.Stop();
-
             //Console.WriteLine(heap);
 
             sendToken = StartSendMessage();
