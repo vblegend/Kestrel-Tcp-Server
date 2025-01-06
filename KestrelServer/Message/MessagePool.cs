@@ -18,15 +18,6 @@ namespace KestrelServer.Message
         public void Return(AbstractNetMessage message);
     }
 
-    internal class MessagePool
-    {
-
-
-
-    }
-
-
-
     /// <summary>
     /// 泛型的消息池实现将AbstractNetMessage消息池化
     /// </summary>

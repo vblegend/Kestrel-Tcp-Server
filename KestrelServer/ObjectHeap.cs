@@ -2,7 +2,7 @@
 using System.Collections.Concurrent;
 using System.Threading;
 
-namespace KestrelServer.Network
+namespace KestrelServer
 {
     public class ObjectHeap<T> where T : class
     {

@@ -1,4 +1,5 @@
-﻿using System;
+﻿using KestrelServer.Network;
+using System;
 using System.Buffers;
 
 
@@ -25,6 +26,11 @@ namespace KestrelServer.Message
         internal IMessagePool _pool;
 
         /// <summary>
+        /// 
+        /// </summary>
+        public IConnectionSession Session;
+
+        /// <summary>
         /// 从缓存读取消息内容
         /// </summary>
         /// <param name="reader"></param>
@@ -42,6 +48,7 @@ namespace KestrelServer.Message
         public void Return()
         {
             Reset();
+            Session = null;
             if (_pool != null) _pool.Return(this);
         }
 

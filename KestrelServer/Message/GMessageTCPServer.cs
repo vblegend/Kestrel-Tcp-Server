@@ -3,7 +3,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Buffers;
-using System.Diagnostics;
+using System.Collections.Concurrent;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
@@ -19,15 +19,15 @@ namespace KestrelServer.Message
         private readonly TimeService timeService;
         private readonly GMessageParser messageParser;
         private readonly ILogger<GMessageTCPServer> logger;
-        private readonly MessageAsyncRouter msgRouter;
-
+        private readonly AsyncMessageRouter msgRouter;
+        private readonly ConcurrentQueue<AbstractNetMessage> msgQueue = new ConcurrentQueue<AbstractNetMessage>();   
         public GMessageTCPServer(IPBlacklistTrie iPBlacklist, TimeService timeService, GMessageParser messageParser, ILogger<GMessageTCPServer> _logger) : base(_logger, timeService, 5)
         {
             this.timeService = timeService;
             this.iPBlacklist = iPBlacklist;
             this.messageParser = messageParser;
             logger = _logger;
-            msgRouter = new MessageAsyncRouter(this);
+            msgRouter = new AsyncMessageRouter(this);
         }
 
 
@@ -39,6 +39,7 @@ namespace KestrelServer.Message
 
 
             logger.LogInformation("TCP Server Listen: {0}", $"tcp://{IPAddress.Any}:{50000}");
+            ThreadPool.QueueUserWorkItem(ProcessMessage);
             await Task.CompletedTask;
         }
 
@@ -90,6 +91,35 @@ namespace KestrelServer.Message
         }
 
 
+        private async void ProcessMessage(Object?state)
+        {
+            while (true) {
+                if (msgQueue.TryDequeue(out var msg))
+                {
+                    await msgRouter.RouteAsync(msg);
+                    count++;
+                    //await session.WriteFlushAsync(MessageFactory.ExampleMessage(count));
+                    if (count % 100000 == 0)
+                    {
+                        logger.LogInformation("Received packet: {0}", count);
+                    }
+                    msg = null;
+                }
+                else
+                {
+                    Thread.Sleep(100);
+                };
+            }
+
+
+        }
+
+
+
+
+
+
+
         protected override async ValueTask OnReceive(IConnectionSession session, ReadOnlySequence<byte> buffer)
         {
 
@@ -102,28 +132,20 @@ namespace KestrelServer.Message
             }
             if (result == ParseResult.Ok)
             {
-                await msgRouter.RouteAsync(session, message);
-                count++;
-                //await session.WriteFlushAsync(MessageFactory.ExampleMessage(count));
-
-                if (count % 100000 == 0)
-                {
-                    logger.LogInformation("Received packet: {0}", count);
-                }
-                message.Return();
+                message.Session = session;
+                msgQueue.Enqueue(message);
             }
         }
 
 
 
-        public async ValueTask Process(IConnectionSession session, ExampleMessage message)
+        public async ValueTask Process(ExampleMessage message)
         {
-
 
             await ValueTask.CompletedTask;
         }
 
-        public async ValueTask Process(IConnectionSession session, GatewayMessage message)
+        public async ValueTask Process(GatewayMessage message)
         {
 
 

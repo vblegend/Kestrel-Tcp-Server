@@ -1,5 +1,4 @@
-﻿using Microsoft.Extensions.ObjectPool;
-using System;
+﻿using System;
 using System.Buffers;
 using System.IO.Pipelines;
 using System.Net;
@@ -9,32 +8,7 @@ using System.Threading.Tasks;
 namespace KestrelServer.Network
 {
 
-    internal class SessionPool
-    {
-        private class SessionPooledObjectPolicy : PooledObjectPolicy<InternalSession>
-        {
-            public override InternalSession Create()
-            {
-                return new InternalSession();
-            }
 
-            public override bool Return(InternalSession obj)
-            {
-                obj.Clean();
-                return true;
-            }
-        }
-
-
-        internal static ObjectPool<InternalSession> Pool = CreateObjectPool();
-
-        private static ObjectPool<InternalSession> CreateObjectPool()
-        {
-            //return new DisposableObjectPool<InternalSession>(new SessionPooledObjectPolicy(), MaximumRetained);
-            return new DefaultObjectPool<InternalSession>(new SessionPooledObjectPolicy(), 1024);
-        }
-
-    }
 
     internal class InternalSession : IConnectionSession
     {

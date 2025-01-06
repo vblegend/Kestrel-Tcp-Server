@@ -19,6 +19,7 @@ namespace KestrelServer.Network
         private UInt32 MinimumPacketLength = 0;
         private readonly ILogger<TCPServer> logger;
         private readonly TimeService timeService;
+        private readonly InternalSessionPool sessionPool;
 
         private CancellationTokenSource listenCancelTokenSource = null;
         private TaskCompletionSource stopCompleted = null;
@@ -28,6 +29,14 @@ namespace KestrelServer.Network
             this.logger = _logger;
             this.timeService = _timeService;
             this.MinimumPacketLength = minimumPacketLength;
+            this.sessionPool = new InternalSessionPool(Environment.ProcessorCount * 2);
+        }
+
+
+        public override void Dispose()
+        {
+            this.sessionPool.Dispose();
+            base.Dispose();
         }
 
 
@@ -102,7 +111,7 @@ namespace KestrelServer.Network
                 Interlocked.Increment(ref _currentConnectionCounter);
                 networkStream = new NetworkStream(socket, ownsSocket: true);
                 var reader = PipeReader.Create(networkStream);
-                session = SessionPool.Pool.Get();
+                session = sessionPool.Get();
                 session.ConnectionId = Interlocked.Increment(ref ConnectionIdSource);
                 session.ConnectTime = timeService.Now();
                 session.Init(networkStream);
@@ -167,7 +176,7 @@ namespace KestrelServer.Network
                 {
 
                     await this.OnClose(session);
-                    SessionPool.Pool.Return(session);
+                    sessionPool.Return(session);
                 }
                 if (Interlocked.Decrement(ref _currentConnectionCounter) == 0)
                 {

@@ -38,13 +38,6 @@ namespace KestrelServer.Message
                     Keys.Add(msg.Kind, attrubute.Getter);
                     msg.Return();
                 }
-                else
-                {
-                    var genFunc = type.CreateDefaultConstructor<AbstractNetMessage>();
-                    var obj = genFunc();
-                    Keys.Add(obj.Kind, genFunc);
-                    obj = null;
-                }
             }
         }
 
