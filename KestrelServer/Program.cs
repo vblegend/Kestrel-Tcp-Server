@@ -57,7 +57,7 @@ namespace KestrelServer
             ipBlock.Add("192.168.1.1/24");
 
             services.AddSingleton<IPBlacklistTrie>(ipBlock);
-            services.AddSingleton<GMPayloadResolver>(GMPayloadResolver.Default);
+            services.AddSingleton<MessageResolver>(MessageResolver.Default);
             services.AddSingleton<GMessageParser>();
 
 

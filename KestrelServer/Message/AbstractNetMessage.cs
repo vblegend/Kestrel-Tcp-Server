@@ -17,7 +17,7 @@ namespace KestrelServer.Message
         /// <summary>
         /// 获取消息的Kind
         /// </summary>
-        public readonly Int32 Kind;
+        public readonly Int16 Kind;
 
         /// <summary>
         /// 池子的归还函数

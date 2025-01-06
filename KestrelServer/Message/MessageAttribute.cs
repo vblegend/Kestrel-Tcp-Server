@@ -13,7 +13,7 @@ namespace KestrelServer.Message
 
 
     [AttributeUsage(AttributeTargets.Class, Inherited = false)]
-    public class MessageAttribute<TMessage> : IPoolGetterAttribute where TMessage : AbstractNetMessage, new()
+    public class MessageAttribute<TMessage> : IPoolGetterAttribute where TMessage : AbstractNetMessage, new() 
     {
 
         /// <summary>
@@ -23,7 +23,7 @@ namespace KestrelServer.Message
         /// <param name="poolCapacity">池容量，如果为0则禁用池</param>
         public unsafe MessageAttribute(MessageKind kind, Int32 poolCapacity = 0)
         {
-            fixed (Int32* ptr = &MessagePool<TMessage>.Kind) *ptr = (Int32)kind;
+            fixed (Int16* ptr = &MessagePool<TMessage>.Kind) *ptr = (Int16)kind;
             Getter = MessagePool<TMessage>.Shared.Get;
             if (poolCapacity > 0)
             {

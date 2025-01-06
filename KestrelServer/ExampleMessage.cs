@@ -32,14 +32,25 @@ namespace KestrelServer
     public class GatewayMessage : AbstractNetMessage
     {
         public Int32 ChannalId;
-        public Int32 Action;
+        public Int16 Action;
         public AbstractNetMessage Payload;
+
+        public GatewayMessage()
+        {
+            
+        }
+
+        public GatewayMessage(AbstractNetMessage payload)
+        {
+            Payload = payload;
+        }
+
 
         public override void Read(SequenceReader<byte> reader)
         {
             reader.TryRead<Int32>(out ChannalId);
-            reader.TryRead<Int32>(out Action);
-            // set Payload Ins
+            reader.TryRead<Int16>(out Action);
+            Payload = MessageResolver.Default.Resolver(Action);
             Payload.Read(reader);
         }
 

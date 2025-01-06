@@ -10,7 +10,7 @@ namespace KestrelServer.Message
     {
         public static readonly UInt16 Header = 0x4D47;
 
-        private static GMFlags[] KindFlags = [default, GMFlags.None, GMFlags.Flag2, GMFlags.Kind3, GMFlags.Kind4];
+        private static GMFlags[] KindFlags = [default, GMFlags.None, GMFlags.Flag2];
 
         private IBufferWriter<byte> _writer;
 
@@ -28,7 +28,7 @@ namespace KestrelServer.Message
                 message.Write(payloadStream);
                 packetLength += (Int32)payloadStream.Length;
 
-                Int32 kindValue = message.Kind;
+                Int16 kindValue = message.Kind;
                 Byte kl = GetEffectiveBytes(kindValue);
                 flags |= KindFlags[kl];
                 packetLength += kl;
@@ -56,6 +56,16 @@ namespace KestrelServer.Message
             if ((absValue & 0xFF000000) == 0) return 3; // 3 字节
             return 4; // 4 字节
         }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Byte GetEffectiveBytes(Int16 number)
+        {
+            if (number == 0) return 1; // 0 使用1字节
+            int absValue = Math.Abs(number);
+            if ((absValue & 0xFF00) == 0) return 1; // 1 字节
+            return 2; // 4 字节
+        }
+
 
         internal static uint Combine(uint length, byte flags)
         {

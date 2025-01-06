@@ -27,21 +27,19 @@ namespace KestrelServer.Message
 
     public class GMessageParser
     {
-        private readonly GMPayloadResolver resolver;
-        public GMessageParser(GMPayloadResolver resolver = null)
+        private readonly MessageResolver resolver;
+        public GMessageParser(MessageResolver resolver = null)
         {
-            this.resolver = resolver ?? GMPayloadResolver.Default;
+            this.resolver = resolver ?? MessageResolver.Default;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static Byte GetKindLen(GMFlags flags)
         {
-            if ((flags & GMFlags.Kind4) == GMFlags.Kind4) return 4;
-            if ((flags & GMFlags.Kind3) == GMFlags.Kind3) return 3;
             if ((flags & GMFlags.Kind2) == GMFlags.Kind2) return 2;
             return 1;
         }
-
+        // 474D 00 1300 02 00000000 08 FFFFFFFFFFFFFF7F
         public ParseResult Parse(SequenceReader<byte> reader, out AbstractNetMessage message)
         {
             message = default;
@@ -52,7 +50,7 @@ namespace KestrelServer.Message
             if (reader.Length < packetLen) return ParseResult.Partial;
 
             var kl = GetKindLen(flags);
-            reader.TryRead(kl, out Int32 kind);
+            reader.TryRead(kl, out Int16 kind);
             reader.TryRead(out UInt32 time);
             reader.TryRead<byte>(out var dataLen);
             if (dataLen != reader.UnreadSequence.Length % 255) return ParseResult.Illicit;

@@ -6,15 +6,15 @@ using System.Reflection;
 
 namespace KestrelServer.Message
 {
-    public class GMPayloadResolver
+    public class MessageResolver
     {
 
         /// <summary>
         /// 默认的解析器
         /// </summary>
-        public static GMPayloadResolver Default = new GMPayloadResolver();
+        public static MessageResolver Default = new MessageResolver();
 
-        static GMPayloadResolver()
+        static MessageResolver()
         {
             foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies()) ResolveAssembly(assembly);
             AppDomain.CurrentDomain.AssemblyLoad += AppDomain_AssemblyLoad;
@@ -49,12 +49,12 @@ namespace KestrelServer.Message
         }
 
 
-        private readonly static Dictionary<Int32, Func<AbstractNetMessage>> Keys = new Dictionary<Int32, Func<AbstractNetMessage>>();
+        private readonly static Dictionary<Int16, Func<AbstractNetMessage>> Keys = new Dictionary<Int16, Func<AbstractNetMessage>>();
 
 
 
 
-        public AbstractNetMessage Resolver(int action)
+        public AbstractNetMessage Resolver(Int16 action)
         {
             if (Keys.TryGetValue(action, out var genFunc))
             {

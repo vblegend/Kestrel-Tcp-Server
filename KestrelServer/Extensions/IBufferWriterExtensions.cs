@@ -50,6 +50,32 @@ namespace System.Buffers
             }
         }
 
+
+        public static void Write(this IBufferWriter<byte> writer, Int16 value, Byte length)
+        {
+            // 根据指定的 length 字节数来写入值
+            if (length == 1)
+            {
+                // 1字节：只写入最低的8位
+                var span = writer.GetSpan(1);  // 获取1个字节的空间
+                span[0] = (byte)(value & 0xFF);  // 保留低8位
+                writer.Advance(1);  // 更新 writer 状态，表示已写入1个字节
+            }
+            else if (length == 2)
+            {
+                // 2字节：写入低16位
+                var span = writer.GetSpan(2);  // 获取2个字节的空间
+                span[0] = (byte)(value & 0xFF);        // 保留低8位
+                span[1] = (byte)((value >> 8) & 0xFF); // 保留高8位
+                writer.Advance(2);  // 更新 writer 状态，表示已写入2个字节
+            }
+            else
+            {
+                throw new ArgumentException("Length must be 1, 2, 3, or 4.", nameof(length));
+            }
+        }
+
+
         public static void Write(this IBufferWriter<byte> writer, Int32 value, Byte length)
         {
             // 根据指定的 length 字节数来写入值

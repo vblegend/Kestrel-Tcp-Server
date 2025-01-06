@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Concurrent;
-using System.Runtime.InteropServices;
 using System.Threading;
 
 namespace KestrelServer.Message
@@ -18,6 +17,15 @@ namespace KestrelServer.Message
         /// <param name="message"></param>
         public void Return(AbstractNetMessage message);
     }
+
+    internal class MessagePool
+    {
+
+
+
+    }
+
+
 
     /// <summary>
     /// 泛型的消息池实现将AbstractNetMessage消息池化
@@ -39,7 +47,7 @@ namespace KestrelServer.Message
         /// <summary>
         /// 消息对应的Kind
         /// </summary>
-        public static readonly Int32 Kind;
+        public static readonly Int16 Kind;
 
 
 
@@ -78,7 +86,7 @@ namespace KestrelServer.Message
                 {
                     // no object available, so go get a brand new one
                     item = new TMessage();
-                    fixed (Int32* ptr = &item.Kind) *ptr = Kind;
+                    fixed (Int16* ptr = &item.Kind) *ptr = Kind;
                 }
             }
             item._pool = this;

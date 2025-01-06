@@ -3,6 +3,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Buffers;
+using System.Diagnostics;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
@@ -11,14 +12,14 @@ using System.Threading.Tasks;
 namespace KestrelServer.Message
 {
 
-    public class GMessageTCPServer : TCPServer, IHostedService
+    public class GMessageTCPServer : TCPServer, IHostedService, IMessageProcessor
     {
         public long count = 0;
         private readonly IPBlacklistTrie iPBlacklist;
         private readonly TimeService timeService;
         private readonly GMessageParser messageParser;
         private readonly ILogger<GMessageTCPServer> logger;
-
+        private readonly MessageAsyncRouter msgRouter;
 
         public GMessageTCPServer(IPBlacklistTrie iPBlacklist, TimeService timeService, GMessageParser messageParser, ILogger<GMessageTCPServer> _logger) : base(_logger, timeService, 5)
         {
@@ -26,6 +27,7 @@ namespace KestrelServer.Message
             this.iPBlacklist = iPBlacklist;
             this.messageParser = messageParser;
             logger = _logger;
+            msgRouter = new MessageAsyncRouter(this);
         }
 
 
@@ -88,9 +90,9 @@ namespace KestrelServer.Message
         }
 
 
-        DefaultMessageProcessor processor = new DefaultMessageProcessor();
         protected override async ValueTask OnReceive(IConnectionSession session, ReadOnlySequence<byte> buffer)
         {
+
             var result = messageParser.Parse(new SequenceReader<byte>(buffer), out AbstractNetMessage message);
             if (result == ParseResult.Illicit)
             {
@@ -100,7 +102,7 @@ namespace KestrelServer.Message
             }
             if (result == ParseResult.Ok)
             {
-                processor.Process(session, message);
+                await msgRouter.RouteAsync(session, message);
                 count++;
                 //await session.WriteFlushAsync(MessageFactory.ExampleMessage(count));
 
@@ -110,9 +112,22 @@ namespace KestrelServer.Message
                 }
                 message.Return();
             }
-
         }
 
 
+
+        public async ValueTask Process(IConnectionSession session, ExampleMessage message)
+        {
+
+
+            await ValueTask.CompletedTask;
+        }
+
+        public async ValueTask Process(IConnectionSession session, GatewayMessage message)
+        {
+
+
+            await ValueTask.CompletedTask;
+        }
     }
 }

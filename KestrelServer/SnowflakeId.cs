@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Runtime.Intrinsics.X86;
 
 namespace KestrelServer
 {
@@ -7,7 +6,7 @@ namespace KestrelServer
     {
         private readonly Int64 m_value;
 
-        public static Func<DateTime> UtcNowFunc = ()=> DateTime.UtcNow;
+        public static Func<DateTime> UtcNowFunc = () => DateTime.UtcNow;
 
         public SnowflakeId()
         {
@@ -20,17 +19,17 @@ namespace KestrelServer
 
         public override string ToString()
         {
-            return this.m_value.ToString("X").PadLeft(16,'0').ToUpper();
+            return this.m_value.ToString("X").PadLeft(16, '0').ToUpper();
         }
 
         public Boolean IsEmpty
         {
             get
             {
-                return this.m_value ==0;
+                return this.m_value == 0;
             }
         }
-        
+
         public Int32 Timestamp
         {
             get
@@ -141,7 +140,7 @@ namespace KestrelServer
                     _sequence = 1L;
                 }
                 _lastTimestamp = timestamp;
-                long id = (timestamp << 12) |  _sequence;
+                long id = (timestamp << 12) | _sequence;
                 return new SnowflakeId(id);
             }
         }
