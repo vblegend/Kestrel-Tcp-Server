@@ -28,6 +28,7 @@ namespace KestrelServer
     /// <summary>
     /// 
     /// </summary>
+    //[UsePool()] 
     [Message<GatewayMessage>(MessageKind.Gateway, 100000)]
     public class GatewayMessage : AbstractNetMessage
     {
