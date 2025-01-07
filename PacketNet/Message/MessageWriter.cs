@@ -19,12 +19,13 @@ namespace PacketNet.Message
             this._writer = writer;
         }
 
-        public void Write(AbstractNetMessage message, UInt32 timeTicks = 0)
+        public void Write(AbstractNetMessage message)
         {
+            var timeTicks = TimeService.Default.UtcTicks();
             using (RecyclableMemoryStream payloadStream = StreamPool.GetStream())
             {
                 GMFlags flags = GMFlags.None;
-                Int32 packetLength = 5 + 5;
+                Int32 packetLength = 5 + 9;
                 message.Write(payloadStream);
                 packetLength += (Int32)payloadStream.Length;
 
@@ -38,7 +39,7 @@ namespace PacketNet.Message
                 _writer.Write((Byte)(flags));                          // 1
                 _writer.Write((UInt16)packetLength);                   // 2
                 _writer.Write(message.Kind, kl);                      // kl
-                _writer.Write(timeTicks);                            // 4
+                _writer.Write(timeTicks);                            // 8
                 _writer.Write((Byte)(payloadStream.Length % 255));     // 1
                 _writer.Write(payloadStream);
                 // ==================================================

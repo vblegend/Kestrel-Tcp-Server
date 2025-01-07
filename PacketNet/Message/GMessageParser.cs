@@ -48,10 +48,9 @@ namespace PacketNet.Message
             reader.TryRead<GMFlags>(out var flags);
             reader.TryRead<UInt16>(out var packetLen);
             if (reader.Length < packetLen) return ParseResult.Partial;
-
             var kl = GetKindLen(flags);
             reader.TryRead(kl, out Int16 kind);
-            reader.TryRead(out UInt32 time);
+            reader.TryRead(out UInt64 time);
             reader.TryRead<byte>(out var dataLen);
             if (dataLen != reader.UnreadSequence.Length % 255) return ParseResult.Illicit;
             message = resolver.Resolver(kind);

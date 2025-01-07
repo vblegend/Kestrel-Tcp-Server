@@ -121,16 +121,22 @@ namespace System.Buffers
 
         public static void Write(this IBufferWriter<byte> writer, byte value)
         {
-            writer.Write([value]);
+            var span = writer.GetSpan(1);
+            span[0] = value;
+            writer.Advance(1);
         }
         public static void Write(this IBufferWriter<byte> writer, char value)
         {
-            writer.Write([(byte)value]);
+            var span = writer.GetSpan(1);
+            span[0] = (Byte)value;
+            writer.Advance(1);
         }
 
         public static void Write(this IBufferWriter<byte> writer, bool value)
         {
-            writer.Write([(byte)(value ? 1 : 0)]);
+            var span = writer.GetSpan(1);
+            span[0] = (byte)(value ? 1 : 0);
+            writer.Advance(1);
         }
 
         public static void Write(this IBufferWriter<byte> writer, short value)
@@ -138,6 +144,10 @@ namespace System.Buffers
             Span<byte> buffer = stackalloc byte[sizeof(short)];
             BinaryPrimitives.WriteInt16LittleEndian(buffer, value);
             writer.Write(buffer);
+            //var span = writer.GetSpan(2);  // 获取2个字节的空间
+            //span[0] = (byte)(value & 0xFF);        // 保留低8位
+            //span[1] = (byte)((value >> 8) & 0xFF); // 保留高8位
+            //writer.Advance(2);  // 更新 writer 状态，表示已写入2个字节
         }
 
         public static void Write(this IBufferWriter<byte> writer, ushort value)
@@ -145,6 +155,12 @@ namespace System.Buffers
             Span<byte> buffer = stackalloc byte[sizeof(ushort)];
             BinaryPrimitives.WriteUInt16LittleEndian(buffer, value);
             writer.Write(buffer);
+
+
+            //var span = writer.GetSpan(2);  // 获取2个字节的空间
+            //span[0] = (byte)(value & 0xFF);        // 保留低8位
+            //span[1] = (byte)((value >> 8) & 0xFF); // 保留高8位
+            //writer.Advance(2);  // 更新 writer 状态，表示已写入2个字节
         }
 
         public static void Write(this IBufferWriter<byte> writer, int value)
@@ -167,6 +183,19 @@ namespace System.Buffers
             Span<byte> buffer = stackalloc byte[sizeof(long)];
             BinaryPrimitives.WriteInt64LittleEndian(buffer, value);
             writer.Write(buffer);
+
+
+            //var span = writer.GetSpan(8);  // 获取4个字节的空间
+            //span[0] = (byte)(value & 0xFF);          // 低8位
+            //span[1] = (byte)((value >> 8) & 0xFF);   // 次低8位
+            //span[2] = (byte)((value >> 16) & 0xFF);  // 次高8位
+            //span[3] = (byte)((value >> 24) & 0xFF);  // 高8位
+            //span[4] = (byte)((value >> 32) & 0xFF);  // 高8位
+            //span[5] = (byte)((value >> 40) & 0xFF);  // 高8位
+            //span[6] = (byte)((value >> 48) & 0xFF);  // 高8位
+            //span[7] = (byte)((value >> 52) & 0xFF);  // 高8位
+            //writer.Advance(8);  // 更新 writer 状态，表示已写入4个字节
+
         }
 
         public static void Write(this IBufferWriter<byte> writer, ulong value)

@@ -29,6 +29,16 @@ namespace PacketNet
             _tickFrequency = TimeSpan.TicksPerSecond / (double)Stopwatch.Frequency;
         }
 
+        public UInt64 UtcTicks()
+        {
+            long currentTimestamp = Stopwatch.GetTimestamp();
+            long elapsedTicks = (long)((currentTimestamp - _baseTimestamp) * _tickFrequency);
+            return (UInt64)(_baseTicks + elapsedTicks);
+        }
+
+
+
+
         /// <summary>
         /// 获取UTC时间
         /// </summary>
