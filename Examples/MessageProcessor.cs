@@ -1,17 +1,16 @@
 ﻿using PacketNet.Message;
 using PacketNet.Network;
 using Serilog;
-using System.Collections.Concurrent;
+using System.Threading.Channels;
 
 namespace Examples
 {
     public class MessageProcessor : IMessageProcessor, IHostedService
     {
         public long count = 0;
-        private readonly ConcurrentQueue<AbstractNetMessage> msgQueue = new ConcurrentQueue<AbstractNetMessage>();
         private readonly AsyncMessageRouter msgRouter;
         private readonly Serilog.ILogger logger = Log.ForContext<TCPServer>();
-
+        private readonly Channel<AbstractNetMessage> messageChannel = Channel.CreateUnbounded<AbstractNetMessage>();
         public MessageProcessor()
         {
             msgRouter = new AsyncMessageRouter(this);
@@ -28,9 +27,9 @@ namespace Examples
             return Task.CompletedTask;
         }
 
-        public void Enqueue(AbstractNetMessage message)
+        public async ValueTask WriteMessageAsync(AbstractNetMessage message)
         {
-            msgQueue.Enqueue(message);
+            await messageChannel.Writer.WriteAsync(message);
         }
 
 
@@ -39,15 +38,9 @@ namespace Examples
             var cancellationToken = (CancellationToken)state;
             while (!cancellationToken.IsCancellationRequested)
             {
-                if (msgQueue.TryDequeue(out var msg))
-                {
-                    await msgRouter.RouteAsync(msg);
-                    msg = null;
-                }
-                else
-                {
-                    Thread.Sleep(1);
-                };
+                var msg = await messageChannel.Reader.ReadAsync(cancellationToken);
+                await msgRouter.RouteAsync(msg);
+                msg = null;
             }
         }
 

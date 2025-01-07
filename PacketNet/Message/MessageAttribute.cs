@@ -4,28 +4,9 @@ using System.Runtime.CompilerServices;
 
 namespace PacketNet.Message
 {
-
-    public interface MessageGetter
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        AbstractNetMessage GetMessage();
-    }
-
-    public class FMessage<TMessage> : MessageGetter where TMessage : AbstractNetMessage, new()
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public AbstractNetMessage GetMessage()
-        {
-            return MFactory<TMessage>.GetMessage();
-        }
-    }
-
     public interface IMessageAttribute
     {
-        //  这里用接口反而降
-        MessageGetter BuildGetter();
-
-        Func<AbstractNetMessage> GetFunc();
+       unsafe delegate*<AbstractNetMessage> GetPointer();
     }
 
 
@@ -43,20 +24,10 @@ namespace PacketNet.Message
             MFactory<TMessage>.InitialFactory(kind, poolCapacity);
         }
 
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public MessageGetter BuildGetter()
+        public unsafe delegate*<AbstractNetMessage> GetPointer()
         {
-            return new FMessage<TMessage>();
+            return &MFactory<TMessage>.GetMessage;
         }
-
-
-        public Func<AbstractNetMessage> GetFunc()
-        {
-            return MFactory<TMessage>.GetMessage;
-        }
-
-
 
     }
 }

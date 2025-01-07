@@ -63,13 +63,19 @@ namespace PacketNet
             services.AddHostedService(provider => provider.GetRequiredService<MessageProcessor>());
 
 
-            services.AddSingleton<ExampleServer>();
-            services.AddHostedService(provider => provider.GetRequiredService<ExampleServer>());
+            if (Environment.CommandLine.Contains("server"))
+            {
+                services.AddSingleton<ExampleServer>();
+                services.AddHostedService(provider => provider.GetRequiredService<ExampleServer>());
+            }
 
 
-            services.AddSingleton<TestService>();
-            services.AddHostedService(provider => provider.GetRequiredService<TestService>());
-
+            if (Environment.CommandLine.Contains("client"))
+            {
+                services.AddSingleton<TestService>();
+                services.AddHostedService(provider => provider.GetRequiredService<TestService>());
+            }
+            Console.WriteLine();
 
         }
 

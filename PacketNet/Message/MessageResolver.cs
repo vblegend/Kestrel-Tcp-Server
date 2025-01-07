@@ -8,6 +8,7 @@ namespace PacketNet.Message
 {
     public class MessageResolver
     {
+        private readonly static Dictionary<Int16, IntPtr> Keys = new();
 
         /// <summary>
         /// 默认的解析器
@@ -25,7 +26,7 @@ namespace PacketNet.Message
             ResolveAssembly(args.LoadedAssembly);
         }
 
-        private static void ResolveAssembly(Assembly assembly)
+        private unsafe static void ResolveAssembly(Assembly assembly)
         {
             var processorTypes = assembly.GetTypes().Where(type => type.IsClass && !type.IsAbstract);
             foreach (var type in processorTypes)
@@ -38,29 +39,24 @@ namespace PacketNet.Message
                 var messageAttribute = attributes.OfType<IMessageAttribute>().FirstOrDefault();
                 if (messageAttribute != null)
                 {
-                    var getter = messageAttribute.GetFunc();
+                    var getter = messageAttribute.GetPointer();
                     var msg = getter();
-                    Keys.Add(msg.Kind, getter);
+                    Keys.Add(msg.Kind, (IntPtr)getter);
                     msg.Return();
                 }
             }
         }
 
 
-        private readonly static Dictionary<Int16, Func<AbstractNetMessage>> Keys = new Dictionary<Int16, Func<AbstractNetMessage>>();
 
 
-
-
-        public AbstractNetMessage Resolver(Int16 action)
+        public unsafe AbstractNetMessage Resolver(Int16 action)
         {
-            if (Keys.TryGetValue(action, out var getter))
+            if (Keys.TryGetValue(action, out var p))
             {
+                delegate*<AbstractNetMessage> getter = (delegate*<AbstractNetMessage>)p;
                 return getter();
             }
-            //
-            //
-            //
             throw new InvalidOperationException();
         }
 
