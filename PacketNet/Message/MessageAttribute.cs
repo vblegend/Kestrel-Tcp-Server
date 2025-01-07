@@ -24,6 +24,8 @@ namespace PacketNet.Message
     {
         //  这里用接口反而降
         MessageGetter BuildGetter();
+
+        Func<AbstractNetMessage> GetFunc();
     }
 
 
@@ -47,6 +49,14 @@ namespace PacketNet.Message
         {
             return new FMessage<TMessage>();
         }
+
+
+        public Func<AbstractNetMessage> GetFunc()
+        {
+            return MFactory<TMessage>.GetMessage;
+        }
+
+
 
     }
 }

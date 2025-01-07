@@ -38,8 +38,8 @@ namespace PacketNet.Message
                 var messageAttribute = attributes.OfType<IMessageAttribute>().FirstOrDefault();
                 if (messageAttribute != null)
                 {
-                    var getter = messageAttribute.BuildGetter();
-                    var msg = getter.GetMessage();
+                    var getter = messageAttribute.GetFunc();
+                    var msg = getter();
                     Keys.Add(msg.Kind, getter);
                     msg.Return();
                 }
@@ -47,7 +47,7 @@ namespace PacketNet.Message
         }
 
 
-        private readonly static Dictionary<Int16, MessageGetter> Keys = new Dictionary<Int16, MessageGetter>();
+        private readonly static Dictionary<Int16, Func<AbstractNetMessage>> Keys = new Dictionary<Int16, Func<AbstractNetMessage>>();
 
 
 
@@ -56,7 +56,7 @@ namespace PacketNet.Message
         {
             if (Keys.TryGetValue(action, out var getter))
             {
-                return getter.GetMessage();
+                return getter();
             }
             //
             //
