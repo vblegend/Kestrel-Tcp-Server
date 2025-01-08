@@ -1,20 +1,21 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using Microsoft.AspNetCore.WebUtilities;
+using Microsoft.Extensions.Logging;
+using PacketNet.Network;
 using System;
 using System.Buffers;
 using System.IO.Pipelines;
-using System.Net;
-using System.Net.Sockets;
+using System.IO.Pipes;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace PacketNet.Network
+namespace PacketNet.Pipes
 {
-    public class TCPClient : IPV4Socket, IPacketClient
+    public class PipeClient : IPacketClient
     {
         private readonly ILogger<TCPServer> logger = LoggerProvider.CreateLogger<TCPServer>();
         private UInt32 _minimumPacketLength = 1;
         private CancellationTokenSource cancelTokenSource = null;
-        private NetworkStream networkStream = null;
+        private NamedPipeClientStream stream = null;
         protected PipeWriter streamWriter = null;
         private ClientHandlerAdapter handlerAdapter = null;
 
@@ -27,52 +28,46 @@ namespace PacketNet.Network
         {
             get
             {
-                return socket.Connected;
+                return stream.IsConnected;
             }
-        }
-
-        public async ValueTask ConnectAsync(String address, int port, CancellationToken cancellationToken)
-        {
-            await ConnectAsync(IPAddress.Parse(address), port, cancellationToken);
-        }
-
-        public async ValueTask ConnectAsync(IPAddress address, int port, CancellationToken cancellationToken)
-        {
-            await ConnectAsync(new IPEndPoint(address, port), cancellationToken);
         }
 
         public async ValueTask ConnectAsync(Uri remoteUri, CancellationToken cancellationToken)
         {
-            await ConnectAsync(new IPEndPoint(IPAddress.Parse(remoteUri.Host), remoteUri.Port), cancellationToken);
+            var querys = QueryHelpers.ParseQuery(remoteUri.Query);
+            if (!querys.ContainsKey("name")) throw new Exception("缺少参数 name");
+            var uname = querys["name"];
+            await ConnectAsync(remoteUri.Host, uname, cancellationToken);
         }
 
 
-        public async ValueTask ConnectAsync(EndPoint remoteEP, CancellationToken cancellationToken)
+        public async ValueTask ConnectAsync(String serverName, String pipeName, CancellationToken cancellationToken)
         {
             if (cancelTokenSource != null) throw new Exception("不能重复连接");
             cancelTokenSource = new CancellationTokenSource();
-            await socket.ConnectAsync(remoteEP, cancelTokenSource.Token);
-            _ = OnConnectedAsync(socket, cancelTokenSource.Token);
+            stream = new NamedPipeClientStream(serverName, pipeName, PipeDirection.InOut, System.IO.Pipes.PipeOptions.Asynchronous);
+
+            await stream.ConnectAsync(cancellationToken);
+            _ = OnConnectedAsync(cancelTokenSource.Token);
         }
 
         public void Close()
         {
             cancelTokenSource?.Cancel();
-            socket.Close();
+            stream.Dispose();
             cancelTokenSource = null;
         }
 
 
-        private async Task OnConnectedAsync(Socket socket, CancellationToken cancellationToken)
+        private async Task OnConnectedAsync(CancellationToken cancellationToken)
         {
             long minimumReadSize = _minimumPacketLength;
             try
             {
-                networkStream = new NetworkStream(socket, true);
-                streamWriter = PipeWriter.Create(networkStream);
-                var reader = PipeReader.Create(networkStream);
+                streamWriter = PipeWriter.Create(stream);
+                var reader = PipeReader.Create(stream);
                 await handlerAdapter.OnConnection(this);
-                while (!cancellationToken.IsCancellationRequested && socket.Connected)
+                while (!cancellationToken.IsCancellationRequested && stream.IsConnected)
                 {
                     var result = await reader.ReadAtLeastAsync((int)minimumReadSize, cancellationToken);
                     if (result.IsCompleted) break;
@@ -98,8 +93,9 @@ namespace PacketNet.Network
             finally
             {
                 streamWriter = null;
-                if (networkStream != null) await networkStream.DisposeAsync();
-                networkStream = null;
+                if (stream != null) await stream.DisposeAsync();
+                cancelTokenSource = null;
+                stream = null;
                 await handlerAdapter.OnClose(this);
             }
         }
@@ -168,11 +164,10 @@ namespace PacketNet.Network
             return new ValueTask<UInt32>((UInt32)buffer.Length);
         }
 
-        public override void Dispose()
+        public void Dispose()
         {
             Close();
         }
-
 
         public UInt32 MinimumPacketLength
         {

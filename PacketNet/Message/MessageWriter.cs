@@ -25,7 +25,7 @@ namespace PacketNet.Message
             using (RecyclableMemoryStream payloadStream = StreamPool.GetStream())
             {
                 GMFlags flags = GMFlags.None;
-                Int32 packetLength = 5 + 9;
+                Int32 packetLength = 5 + 8;
                 message.Write(payloadStream);
                 packetLength += (Int32)payloadStream.Length;
 
@@ -40,7 +40,6 @@ namespace PacketNet.Message
                 _writer.Write((UInt16)packetLength);                   // 2
                 _writer.Write(message.Kind, kl);                      // kl
                 _writer.Write(timeTicks);                            // 8
-                _writer.Write((Byte)(payloadStream.Length % 255));     // 1
                 _writer.Write(payloadStream);
                 // ==================================================
             }

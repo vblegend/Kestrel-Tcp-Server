@@ -1,17 +1,19 @@
-﻿using PacketNet.Message;
+﻿using PacketNet;
+using PacketNet.Message;
 using PacketNet.Network;
 using System.Buffers;
-using System.Net;
 
-namespace Examples
+namespace Examples.Services
 {
-    public class ExampleServer : MessageTCPServer, IHostedService
+    public class TestServerService : MessageServer, IHostedService
     {
-        private readonly ILogger<ExampleServer> logger;
+        private readonly ILogger<TestServerService> logger;
         private readonly MessageProcessor messageProcessor;
+        private readonly ApplicationOptions applicationOptions;
 
-        public ExampleServer(ILogger<ExampleServer> _logger, MessageProcessor _messageProcessor)
+        public TestServerService(ILogger<TestServerService> _logger, MessageProcessor _messageProcessor, ApplicationOptions applicationOptions)
         {
+            this.applicationOptions = applicationOptions;
             messageProcessor = _messageProcessor;
             logger = _logger;
         }
@@ -20,8 +22,8 @@ namespace Examples
 
         public async Task StartAsync(CancellationToken cancellationToken)
         {
-            Listen(IPAddress.Any, 50000);
-            logger.LogInformation("TCP Server Listen: {0}", $"tcp://{IPAddress.Any}:{50000}");
+            Listen(applicationOptions.ServerUri);
+            logger.LogInformation("TCP Server Listen: {0}", applicationOptions.ServerUri);
             await Task.CompletedTask;
         }
 
@@ -32,7 +34,7 @@ namespace Examples
         }
 
 
-        protected override async ValueTask<bool> OnConnected(IConnectionSession session)
+        public override async ValueTask<bool> OnConnected(IConnectionSession session)
         {
             //if (connection.RemoteEndPoint is IPEndPoint ipEndPoint)
             //{
@@ -49,13 +51,13 @@ namespace Examples
         }
 
 
-        protected override async ValueTask OnClose(IConnectionSession session)
+        public override async ValueTask OnClose(IConnectionSession session)
         {
             logger.LogInformation("Client    Closed: {0}, ClientIp: {1}", session.ConnectionId, session.RemoteEndPoint);
             await ValueTask.CompletedTask;
         }
 
-        protected override async ValueTask OnError(IConnectionSession session, Exception ex)
+        public override async ValueTask OnError(IConnectionSession session, Exception ex)
         {
             logger.LogError($"Client     Error: {session.ConnectionId}, {ex.Message}");
             await ValueTask.CompletedTask;

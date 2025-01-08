@@ -10,7 +10,7 @@ namespace PacketNet.Network
         ValueTask OnConnection(TCPClient client);
         ValueTask OnClose(TCPClient client);
         ValueTask OnError(Exception exception);
-        async ValueTask OnReceive(TCPClient client, ReadOnlySequence<Byte> data)
+        async ValueTask OnReceive(ReadOnlySequence<Byte> data)
         {
             await ValueTask.CompletedTask;
         }

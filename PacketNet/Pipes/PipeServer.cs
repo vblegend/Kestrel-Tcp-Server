@@ -1,53 +1,45 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using Microsoft.AspNetCore.WebUtilities;
+using Microsoft.Extensions.Logging;
 using PacketNet.Network;
-using System.Buffers;
-using System.IO.Pipelines;
-using System.Net.Sockets;
-using System.Net;
-using System.Threading.Tasks;
-using System.Threading;
 using System;
+using System.IO.Pipelines;
 using System.IO.Pipes;
+using System.Net.Sockets;
+using System.Threading;
+using System.Threading.Tasks;
 
 
 namespace PacketNet.Pipes
 {
     public class PipeServer : IPacketServer
     {
-        private String pipeName;
+        private String PipeName;
         private Int64 _currentConnectionCounter;
         private Int64 ConnectionIdSource;
-        public UInt32 MinimumPacketLength = 1;
+        public UInt32 _minimumPacketLength = 1;
         private readonly ILogger<TCPServer> logger = LoggerProvider.CreateLogger<TCPServer>();
         private readonly InternalSessionPool<InternalPipeSession> sessionPool;
 
         private CancellationTokenSource listenCancelTokenSource = null;
         private TaskCompletionSource stopCompleted = null;
 
-        public OnConnectedHandler OnConnected;
-        public OnCloseHandler OnClose;
-        public OnErrorHandler OnError;
-        public OnPacketHandler OnPacket;
-        public OnReceiveHandler OnReceive;
+        public ServerHandlerAdapter handlerAdapter;
 
-        public PipeServer() : base()
+
+
+        public PipeServer()
         {
             this.sessionPool = new InternalSessionPool<InternalPipeSession>(Environment.ProcessorCount * 2);
         }
 
-        public IPacketServer Options(ServerOptions options)
+        public void SetAdapter(ServerHandlerAdapter handlerAdapter)
         {
-            this.OnConnected = options.OnConnected;
-            this.OnClose = options.OnClose;
-            this.OnPacket = options.OnPacket;
-            this.OnReceive = options.OnReceive;
-            this.OnError = options.OnError;
-
-            return this;
+            this.handlerAdapter = handlerAdapter;
         }
 
         public void Dispose()
         {
+            this.StopAsync().Wait();
             this.sessionPool.Dispose();
         }
 
@@ -59,9 +51,10 @@ namespace PacketNet.Pipes
         {
             if (uri == null) throw new Exception("参数不能为空");
             if (uri.Scheme != "pipe") throw new Exception("不支持的协议");
-
-            var uname = String.Format("{0}://{1}{2}", uri.Scheme, uri.Host, (uri.Port > -1) ? ":" + uri.Port : "");
-
+            if (uri.Host != ".") throw new Exception("host 只能是.");
+            var querys = QueryHelpers.ParseQuery(uri.Query);
+            if (!querys.ContainsKey("name")) throw new Exception("缺少参数 name");
+            var uname = querys["name"];
             Listen(uname);
         }
 
@@ -73,6 +66,7 @@ namespace PacketNet.Pipes
         /// <param name="cancellationToken"></param>
         public void Listen(String pipeName)
         {
+            this.PipeName = pipeName;
             if (listenCancelTokenSource != null)
             {
                 throw new Exception("The listener cannot work twice.");
@@ -90,7 +84,7 @@ namespace PacketNet.Pipes
             {
                 while (!cancelToken.IsCancellationRequested)
                 {
-                    var server = new NamedPipeServerStream("", PipeDirection.InOut, 999, PipeTransmissionMode.Byte, System.IO.Pipes.PipeOptions.Asynchronous);
+                    var server = new NamedPipeServerStream(this.PipeName, PipeDirection.InOut, 254, PipeTransmissionMode.Byte, System.IO.Pipes.PipeOptions.Asynchronous);
                     await server.WaitForConnectionAsync(cancelToken);
                     _ = OnConnectedAsync(server, cancelToken);
                 }
@@ -126,7 +120,7 @@ namespace PacketNet.Pipes
         private async Task OnConnectedAsync(NamedPipeServerStream serverStream, CancellationToken cancellationToken)
         {
             InternalPipeSession session = null;
-            long minimumReadSize = MinimumPacketLength;
+            long minimumReadSize = _minimumPacketLength;
             try
             {
                 Interlocked.Increment(ref _currentConnectionCounter);
@@ -135,25 +129,25 @@ namespace PacketNet.Pipes
                 session.ConnectionId = Interlocked.Increment(ref ConnectionIdSource);
                 session.ConnectTime = TimeService.Default.Now();
                 session.Init(serverStream);
-                var allowConnect = await this.OnConnected(session);
+                var allowConnect = await handlerAdapter.OnConnected(session);
                 if (allowConnect)
                 {
                     while (!cancellationToken.IsCancellationRequested && serverStream.IsConnected)
                     {
                         var result = await reader.ReadAtLeastAsync((int)minimumReadSize, cancellationToken);
                         if (result.IsCompleted) break;
-                        var len = await OnPacket(session, result.Buffer);
-                        if (result.Buffer.Length < len)
+                        var parseResult = await handlerAdapter.OnPacket(session, result.Buffer);
+                        if (parseResult.IsCompleted)
                         {
-                            minimumReadSize = len;
-                            reader.AdvanceTo(result.Buffer.Start);
-                            logger.LogDebug("Receive Partial Packet: {0}/{1}", result.Buffer.Length, len);
-                            continue;
+                            reader.AdvanceTo(result.Buffer.GetPosition(parseResult.Length));
+                            minimumReadSize = _minimumPacketLength;
                         }
-                        var packetData = result.Buffer.Slice(0, len);
-                        await OnReceive(session, packetData);
-                        reader.AdvanceTo(result.Buffer.GetPosition(len));
-                        minimumReadSize = MinimumPacketLength;
+                        else
+                        {
+                            minimumReadSize = parseResult.Length;
+                            reader.AdvanceTo(result.Buffer.Start);
+                            logger.LogDebug("Receive Partial Packet: {0}/{1}", result.Buffer.Length, minimumReadSize);
+                        }
                     }
                 }
                 else
@@ -176,12 +170,12 @@ namespace PacketNet.Pipes
                     }
                     else
                     {
-                        if (session != null) await this.OnError(session, ex);
+                        if (session != null) await handlerAdapter.OnError(session, ex);
                     }
                 }
                 else
                 {
-                    if (session != null) await this.OnError(session, ex);
+                    if (session != null) await handlerAdapter.OnError(session, ex);
                 }
             }
             finally
@@ -189,13 +183,12 @@ namespace PacketNet.Pipes
 
                 if (serverStream != null)
                 {
-                    serverStream.Disconnect();
                     await serverStream.DisposeAsync();
                     serverStream = null;
                 }
                 if (session != null)
                 {
-                    await this.OnClose(session);
+                    await handlerAdapter.OnClose(session);
                     sessionPool.Return(session);
                 }
                 if (Interlocked.Decrement(ref _currentConnectionCounter) == 0)
@@ -205,6 +198,18 @@ namespace PacketNet.Pipes
                         stopCompleted?.TrySetResult();
                     }
                 }
+            }
+        }
+
+        public UInt32 MinimumPacketLength
+        {
+            get
+            {
+                return _minimumPacketLength;
+            }
+            set
+            {
+                _minimumPacketLength = value;
             }
         }
 

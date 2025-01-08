@@ -4,7 +4,6 @@ using System.Buffers;
 using System.IO.Pipelines;
 using System.IO.Pipes;
 using System.Net;
-using System.Net.Sockets;
 using System.Threading.Tasks;
 
 namespace PacketNet.Pipes
@@ -25,7 +24,6 @@ namespace PacketNet.Pipes
 
         public void Close(SessionShutdownCause cause)
         {
-            stream?.Disconnect();
             stream?.Close();
             CloseCause = cause;
         }

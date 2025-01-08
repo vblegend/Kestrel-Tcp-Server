@@ -1,9 +1,9 @@
 
 using Examples;
+using Examples.Services;
+using Microsoft.Extensions.DependencyInjection;
 using PacketNet.Message;
-using PacketNet.Pipes;
 using Serilog;
-using System.IO.Pipes;
 
 namespace PacketNet
 {
@@ -47,41 +47,37 @@ namespace PacketNet
             ipBlock.Add("127.0.0.1");
             ipBlock.Add("192.168.1.1/24");
 
+            var appOptions = new ApplicationOptions("pipe");
+
+            services.AddSingleton<ApplicationOptions>(appOptions);
+
+
+
             services.AddSingleton<IPBlacklistTrie>(ipBlock);
             services.AddSingleton<MessageResolver>(MessageResolver.Default);
             services.AddSingleton<GMessageParser>();
-
-
-
-
 
             services.AddTimeService();
 
             services.AddSingleton<MessageProcessor>();
             services.AddHostedService(provider => provider.GetRequiredService<MessageProcessor>());
 
+
+            services.AddSingleton<TestMessageService>();
+            services.AddHostedService(provider => provider.GetRequiredService<TestMessageService>());
+
+
             if (Environment.CommandLine.Contains("server"))
             {
-                services.AddSingleton<ExampleServer>();
-                services.AddHostedService(provider => provider.GetRequiredService<ExampleServer>());
+                services.AddSingleton<TestServerService>();
+                services.AddHostedService(provider => provider.GetRequiredService<TestServerService>());
             }
 
             if (Environment.CommandLine.Contains("client"))
             {
-                services.AddSingleton<TestService>();
-                services.AddHostedService(provider => provider.GetRequiredService<TestService>());
+                services.AddSingleton<TestClientService>();
+                services.AddHostedService(provider => provider.GetRequiredService<TestClientService>());
             }
-
-
-
-
-            services.AddSingleton<TestPipeSevice>();
-            services.AddHostedService(provider => provider.GetRequiredService<TestPipeSevice>());
-
-
-
-
-
 
             Console.WriteLine();
 

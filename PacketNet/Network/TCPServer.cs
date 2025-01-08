@@ -1,6 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
 using System;
-using System.Buffers;
 using System.IO.Pipelines;
 using System.Net;
 using System.Net.Sockets;
@@ -12,20 +11,26 @@ using System.Threading.Tasks;
 
 namespace PacketNet.Network
 {
-    public abstract class TCPServer : IPV4Socket
+    public class TCPServer : IPV4Socket, IPacketServer
     {
         private Int64 _currentConnectionCounter;
         private Int64 ConnectionIdSource;
-        public UInt32 MinimumPacketLength = 1;
+        public UInt32 _minimumPacketLength = 1;
         private readonly ILogger<TCPServer> logger = LoggerProvider.CreateLogger<TCPServer>();
         private readonly InternalSessionPool<InternalNetSession> sessionPool;
 
         private CancellationTokenSource listenCancelTokenSource = null;
         private TaskCompletionSource stopCompleted = null;
-
-        protected TCPServer() : base()
+        private ServerHandlerAdapter handlerAdapter = null;
+        public TCPServer() : base()
         {
             this.sessionPool = new InternalSessionPool<InternalNetSession>(Environment.ProcessorCount * 2);
+        }
+
+
+        public void SetAdapter(ServerHandlerAdapter handlerAdapter)
+        {
+            this.handlerAdapter = handlerAdapter;
         }
 
 
@@ -112,7 +117,7 @@ namespace PacketNet.Network
         {
             NetworkStream networkStream = null;
             InternalNetSession session = null;
-            long minimumReadSize = MinimumPacketLength;
+            long minimumReadSize = _minimumPacketLength;
             try
             {
                 Interlocked.Increment(ref _currentConnectionCounter);
@@ -122,25 +127,25 @@ namespace PacketNet.Network
                 session.ConnectionId = Interlocked.Increment(ref ConnectionIdSource);
                 session.ConnectTime = TimeService.Default.Now();
                 session.Init(networkStream);
-                var allowConnect = await this.OnConnected(session);
+                var allowConnect = await handlerAdapter.OnConnected(session);
                 if (allowConnect)
                 {
                     while (!cancellationToken.IsCancellationRequested && socket.Connected)
                     {
                         var result = await reader.ReadAtLeastAsync((int)minimumReadSize, cancellationToken);
                         if (result.IsCompleted) break;
-                        var len = await OnPacket(session, result.Buffer);
-                        if (result.Buffer.Length < len)
+                        var parseResult = await handlerAdapter.OnPacket(session, result.Buffer);
+                        if (parseResult.IsCompleted)
                         {
-                            minimumReadSize = len;
-                            reader.AdvanceTo(result.Buffer.Start);
-                            logger.LogDebug("Receive Partial Packet: {0}/{1}", result.Buffer.Length, len);
-                            continue;
+                            reader.AdvanceTo(result.Buffer.GetPosition(parseResult.Length));
+                            minimumReadSize = _minimumPacketLength;
                         }
-                        var packetData = result.Buffer.Slice(0, len);
-                        await OnReceive(session, packetData);
-                        reader.AdvanceTo(result.Buffer.GetPosition(len));
-                        minimumReadSize = MinimumPacketLength;
+                        else
+                        {
+                            minimumReadSize = parseResult.Length;
+                            reader.AdvanceTo(result.Buffer.Start);
+                            logger.LogDebug("Receive Partial Packet: {0}/{1}", result.Buffer.Length, minimumReadSize);
+                        }
                     }
                 }
                 else
@@ -163,12 +168,12 @@ namespace PacketNet.Network
                     }
                     else
                     {
-                        if (session != null) await this.OnError(session, ex);
+                        if (session != null) await handlerAdapter.OnError(session, ex);
                     }
                 }
                 else
                 {
-                    if (session != null) await this.OnError(session, ex);
+                    if (session != null) await handlerAdapter.OnError(session, ex);
                 }
             }
             finally
@@ -182,7 +187,7 @@ namespace PacketNet.Network
                 if (session != null)
                 {
 
-                    await this.OnClose(session);
+                    await handlerAdapter.OnClose(session);
                     sessionPool.Return(session);
                 }
                 if (Interlocked.Decrement(ref _currentConnectionCounter) == 0)
@@ -197,60 +202,16 @@ namespace PacketNet.Network
 
         }
 
-
-
-
-        /// <summary>
-        /// 新的客户端连接事件
-        /// </summary>
-        /// <param name="session"></param>
-        /// <returns></returns>
-        protected virtual ValueTask<bool> OnConnected(IConnectionSession session)
+        public UInt32 MinimumPacketLength
         {
-            return new ValueTask<bool>(true);
-        }
-
-        /// <summary>
-        /// 客户端连接关闭
-        /// </summary>
-        /// <param name="session"></param>
-        /// <returns></returns>
-        protected virtual ValueTask OnClose(IConnectionSession session)
-        {
-            return ValueTask.CompletedTask;
-        }
-
-        /// <summary>
-        /// Socket 不可恢复的异常
-        /// </summary>
-        /// <param name="session"></param>
-        /// <param name="ex"></param>
-        /// <returns></returns>
-        protected virtual ValueTask OnError(IConnectionSession session, Exception ex)
-        {
-            return ValueTask.CompletedTask;
-        }
-
-        /// <summary>
-        /// 收到任意封包，进行自定义解析
-        /// </summary>
-        /// <param name="session"></param>
-        /// <param name="sequence"></param>
-        /// <returns></returns>
-        protected virtual ValueTask<UInt32> OnPacket(IConnectionSession session, ReadOnlySequence<Byte> sequence)
-        {
-            return new ValueTask<uint>((UInt32)sequence.Length);
-        }
-
-        /// <summary>
-        /// 收到一个完整封包
-        /// </summary>
-        /// <param name="session"></param>
-        /// <param name="sequence"></param>
-        /// <returns></returns>
-        protected virtual ValueTask OnReceive(IConnectionSession session, ReadOnlySequence<byte> sequence)
-        {
-            return ValueTask.CompletedTask;
+            get
+            {
+                return _minimumPacketLength;
+            }
+            set
+            {
+                _minimumPacketLength = value;
+            }
         }
     }
 }
