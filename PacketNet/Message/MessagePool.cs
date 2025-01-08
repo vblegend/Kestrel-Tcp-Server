@@ -1,8 +1,5 @@
-﻿using Microsoft.Extensions.ObjectPool;
-using System;
+﻿using System;
 using System.Collections.Concurrent;
-using System.Diagnostics.Metrics;
-using System.Reflection;
 using System.Threading;
 
 namespace PacketNet.Message
@@ -61,7 +58,7 @@ namespace PacketNet.Message
         /// 从池中取出一个消息对象，如果池中没有消息对象则新创建
         /// </summary>
         /// <returns></returns>
-        
+
         public unsafe TMessage Get()
         {
             var item = _fastItem;

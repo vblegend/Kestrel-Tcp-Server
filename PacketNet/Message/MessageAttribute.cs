@@ -1,12 +1,10 @@
-﻿using PacketNet.Message;
-using System;
-using System.Runtime.CompilerServices;
+﻿using System;
 
 namespace PacketNet.Message
 {
     public interface IMessageAttribute
     {
-       unsafe delegate*<AbstractNetMessage> GetPointer();
+        unsafe delegate*<AbstractNetMessage> GetPointer();
     }
 
 

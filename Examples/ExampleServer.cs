@@ -63,7 +63,7 @@ namespace Examples
 
         public override async ValueTask OnReceive(AbstractNetMessage message)
         {
-           await messageProcessor.WriteMessageAsync(message);
+            await messageProcessor.WriteMessageAsync(message);
         }
     }
 }

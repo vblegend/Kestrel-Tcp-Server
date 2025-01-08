@@ -1,9 +1,8 @@
-﻿using Serilog;
+﻿using Microsoft.Extensions.Logging;
 using System;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Threading.Tasks;
-using ILogger = Serilog.ILogger;
 
 namespace PacketNet.Message
 {
@@ -23,7 +22,7 @@ namespace PacketNet.Message
     public class AsyncMessageRouter
     {
         private const Int32 BaseIndex = 32767;
-        private static ILogger logger = Log.ForContext<AsyncMessageRouter>();
+        private readonly ILogger<AsyncMessageRouter> logger = LoggerProvider.CreateLogger<AsyncMessageRouter>();
         private readonly AsyncMessageHandlerDelegate<AbstractNetMessage>[] _messageHandlers = new AsyncMessageHandlerDelegate<AbstractNetMessage>[65535];
         private readonly IMessageProcessor _messageProcessor;
 
@@ -74,9 +73,9 @@ namespace PacketNet.Message
         {
             if (_messageHandlers[BaseIndex + kind] != null)
             {
-                logger.Warning("a message handler kind:[{0}] is overwritten..", kind);
+                logger.LogWarning("a message handler kind:[{0}] is overwritten..", kind);
             }
-            logger.Information("Register Message Handler [{0}] {1}.{2}", kind, originMethod.DeclaringType.Name, originMethod.Name);
+            logger.LogInformation("Register Message Handler [{0}] {1}.{2}", kind, originMethod.DeclaringType.Name, originMethod.Name);
             _messageHandlers[BaseIndex + kind] = messageHandler;
         }
 

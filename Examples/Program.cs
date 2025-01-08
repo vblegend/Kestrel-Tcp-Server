@@ -12,7 +12,7 @@ namespace PacketNet
     {
         public static async Task Main(string[] args)
         {
-            var host = CreateHostBuilder(args).Build();
+            var host = CreateHostBuilder(args).Build().PacketLogger();
             await host.RunAsync();
             host.Dispose();
             Console.ReadLine();
@@ -23,14 +23,7 @@ namespace PacketNet
         {
             return Host.CreateDefaultBuilder(args)
                  .UseSerilog(ConfigureSerilog)
-                 .ConfigureLogging(ConfigureLogging)
                  .ConfigureServices(ConfigureServices);
-        }
-
-        private static void ConfigureLogging(ILoggingBuilder logging)
-        {
-            logging.ClearProviders();
-            logging.SetMinimumLevel(LogLevel.Debug);
         }
 
         private static void ConfigureSerilog(HostBuilderContext context, LoggerConfiguration configuration)
@@ -42,6 +35,7 @@ namespace PacketNet
                 configure.Console(outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss fff} [{Level:u4}] {Message:lj}{NewLine}{Exception}");//  [{SourceContext}]
             });
             configuration.Enrich.FromLogContext();
+
         }
 
 
@@ -57,11 +51,12 @@ namespace PacketNet
 
 
 
+
+
             services.AddTimeService();
 
             services.AddSingleton<MessageProcessor>();
             services.AddHostedService(provider => provider.GetRequiredService<MessageProcessor>());
-
 
             if (Environment.CommandLine.Contains("server"))
             {

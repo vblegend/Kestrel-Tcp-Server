@@ -33,11 +33,11 @@ namespace Examples
     {
         public Int32 ChannalId;
         public Int16 Action;
-        public AbstractNetMessage Payload;
+        public AbstractNetMessage? Payload;
 
         public GatewayMessage()
         {
-
+            Payload = null;
         }
 
         public GatewayMessage(AbstractNetMessage payload)
@@ -59,7 +59,7 @@ namespace Examples
         {
             writer.Write(ChannalId);
             writer.Write(Action);
-            Payload.Write(writer);
+            Payload?.Write(writer);
         }
 
         public override void Reset()

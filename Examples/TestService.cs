@@ -23,6 +23,7 @@ namespace Examples
             this.timeService = timeService;
             client = new MessageTCPClient(this);
             SnowflakeId.UtcNowFunc = timeService.UtcNow;
+            sendToken = new CancellationTokenSource();
         }
 
         async ValueTask IGMessageHandler.OnMessage(MessageTCPClient client, AbstractNetMessage message)

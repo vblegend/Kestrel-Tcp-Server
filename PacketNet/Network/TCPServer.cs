@@ -1,4 +1,4 @@
-﻿using Serilog;
+﻿using Microsoft.Extensions.Logging;
 using System;
 using System.Buffers;
 using System.IO.Pipelines;
@@ -17,7 +17,7 @@ namespace PacketNet.Network
         private Int64 _currentConnectionCounter;
         private Int64 ConnectionIdSource;
         public UInt32 MinimumPacketLength = 1;
-        private readonly ILogger logger = Log.ForContext<TCPServer>();
+        private readonly ILogger<TCPServer> logger = LoggerProvider.CreateLogger<TCPServer>();
         private readonly InternalSessionPool sessionPool;
 
         private CancellationTokenSource listenCancelTokenSource = null;
@@ -55,7 +55,7 @@ namespace PacketNet.Network
             socket.Bind(new IPEndPoint(localAddress, localPort));
             socket.Listen(Int32.MaxValue);
             socket.BeginAccept(new AsyncCallback(HandleAccepted), listenCancelTokenSource.Token);
-            logger.Debug("Listen TCP Server: {0}:{1}", localAddress, localPort);
+            logger.LogDebug("Listen TCP Server: {0}:{1}", localAddress, localPort);
         }
 
         private void HandleAccepted(IAsyncResult result)
@@ -71,11 +71,11 @@ namespace PacketNet.Network
             }
             catch (ObjectDisposedException)
             {
-                logger.Debug("Listener closed.");
+                logger.LogDebug("Listener closed.");
             }
             catch (Exception ex)
             {
-                logger.Debug(ex, $"Listener Error {ex.GetType().FullName}.");
+                logger.LogDebug(ex, $"Listener Error {ex.GetType().FullName}.");
             }
 
         }
@@ -123,7 +123,7 @@ namespace PacketNet.Network
                         {
                             minimumReadSize = len;
                             reader.AdvanceTo(result.Buffer.Start);
-                            logger.Debug("Receive Partial Packet: {0}/{1}", result.Buffer.Length, len);
+                            logger.LogDebug("Receive Partial Packet: {0}/{1}", result.Buffer.Length, len);
                             continue;
                         }
                         var packetData = result.Buffer.Slice(0, len);

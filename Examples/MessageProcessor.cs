@@ -35,7 +35,7 @@ namespace Examples
 
         private async void ProcessMessage(Object? state)
         {
-            var cancellationToken = (CancellationToken)state;
+            var cancellationToken = (CancellationToken)state!;
             while (!cancellationToken.IsCancellationRequested)
             {
                 var msg = await messageChannel.Reader.ReadAsync(cancellationToken);
