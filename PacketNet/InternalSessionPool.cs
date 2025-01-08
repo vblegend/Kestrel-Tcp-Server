@@ -1,16 +1,17 @@
-﻿using System;
+﻿using PacketNet.Network;
+using System;
 using System.Collections.Concurrent;
 using System.Threading;
 
-namespace PacketNet.Network
+namespace PacketNet
 {
-    internal class InternalSessionPool : IDisposable
+    internal class InternalSessionPool<TSession> : IDisposable where TSession : class, IConnectionSession, new()
     {
         private readonly int _maxCapacity;
         private int _numItems;
 
-        private protected readonly ConcurrentQueue<InternalSession> _items = new();
-        private protected InternalSession _fastItem;
+        private protected readonly ConcurrentQueue<TSession> _items = new();
+        private protected TSession _fastItem;
 
 
         /// <summary>
@@ -24,7 +25,7 @@ namespace PacketNet.Network
         }
 
         /// <inheritdoc />
-        public InternalSession Get()
+        public TSession Get()
         {
             var item = _fastItem;
             if (item == null || Interlocked.CompareExchange(ref _fastItem, null, item) != item)
@@ -36,14 +37,14 @@ namespace PacketNet.Network
                 }
 
                 // no object available, so go get a brand new one
-                return new InternalSession();
+                return new TSession();
             }
 
             return item;
         }
 
         /// <inheritdoc />
-        public void Return(InternalSession obj)
+        public void Return(TSession obj)
         {
             if (obj == null) throw new ArgumentNullException(nameof(obj));
             obj.Clean();

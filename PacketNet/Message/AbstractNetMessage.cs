@@ -26,7 +26,7 @@ namespace PacketNet.Message
         internal IMessagePool _pool;
 
         /// <summary>
-        /// 
+        /// 接收该消息的Session，发送时该字段为空
         /// </summary>
         public IConnectionSession Session;
 

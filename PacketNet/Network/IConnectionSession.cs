@@ -107,5 +107,10 @@ namespace PacketNet.Network
         /// <param name="cause"></param>
         void Close(SessionShutdownCause cause = SessionShutdownCause.NONE);
 
+        /// <summary>
+        /// 清除session 所有数据
+        /// </summary>
+        void Clean();
+
     }
 }

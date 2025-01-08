@@ -1,52 +1,69 @@
 ﻿using Microsoft.Extensions.Logging;
-using System;
+using PacketNet.Network;
 using System.Buffers;
 using System.IO.Pipelines;
-using System.Net;
 using System.Net.Sockets;
-using System.Threading;
+using System.Net;
 using System.Threading.Tasks;
+using System.Threading;
+using System;
+using System.IO.Pipes;
 
 
-
-
-namespace PacketNet.Network
+namespace PacketNet.Pipes
 {
-    public abstract class TCPServer : IPV4Socket
+    public class PipeServer : IPacketServer
     {
+        private String pipeName;
         private Int64 _currentConnectionCounter;
         private Int64 ConnectionIdSource;
         public UInt32 MinimumPacketLength = 1;
         private readonly ILogger<TCPServer> logger = LoggerProvider.CreateLogger<TCPServer>();
-        private readonly InternalSessionPool<InternalNetSession> sessionPool;
+        private readonly InternalSessionPool<InternalPipeSession> sessionPool;
 
         private CancellationTokenSource listenCancelTokenSource = null;
         private TaskCompletionSource stopCompleted = null;
 
-        protected TCPServer() : base()
+        public OnConnectedHandler OnConnected;
+        public OnCloseHandler OnClose;
+        public OnErrorHandler OnError;
+        public OnPacketHandler OnPacket;
+        public OnReceiveHandler OnReceive;
+
+        public PipeServer() : base()
         {
-            this.sessionPool = new InternalSessionPool<InternalNetSession>(Environment.ProcessorCount * 2);
+            this.sessionPool = new InternalSessionPool<InternalPipeSession>(Environment.ProcessorCount * 2);
         }
 
+        public IPacketServer Options(ServerOptions options)
+        {
+            this.OnConnected = options.OnConnected;
+            this.OnClose = options.OnClose;
+            this.OnPacket = options.OnPacket;
+            this.OnReceive = options.OnReceive;
+            this.OnError = options.OnError;
 
-        public override void Dispose()
+            return this;
+        }
+
+        public void Dispose()
         {
             this.sessionPool.Dispose();
-            base.Dispose();
         }
 
-
         /// <summary>
-        /// use tcp://0.0.0.0:5000
+        /// use pipe://Named.xx:1
         /// </summary>
         /// <param name="uri"></param>
         public void Listen(Uri uri)
         {
             if (uri == null) throw new Exception("参数不能为空");
-            if (uri.Scheme != "tcp") throw new Exception("不支持的协议");
-            Listen(IPAddress.Parse(uri.Host), uri.Port);
-        }
+            if (uri.Scheme != "pipe") throw new Exception("不支持的协议");
 
+            var uname = String.Format("{0}://{1}{2}", uri.Scheme, uri.Host, (uri.Port > -1) ? ":" + uri.Port : "");
+
+            Listen(uname);
+        }
 
         /// <summary>
         /// 监听IP地址及端口，此方法不会阻塞
@@ -54,7 +71,7 @@ namespace PacketNet.Network
         /// <param name="localAddress"></param>
         /// <param name="localPort"></param>
         /// <param name="cancellationToken"></param>
-        public void Listen(IPAddress localAddress, Int32 localPort)
+        public void Listen(String pipeName)
         {
             if (listenCancelTokenSource != null)
             {
@@ -62,23 +79,21 @@ namespace PacketNet.Network
             }
             listenCancelTokenSource = new CancellationTokenSource();
             stopCompleted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-
-            socket.Bind(new IPEndPoint(localAddress, localPort));
-            socket.Listen(Int32.MaxValue);
-            socket.BeginAccept(new AsyncCallback(HandleAccepted), listenCancelTokenSource.Token);
-            logger.LogDebug("Listen TCP Server: {0}:{1}", localAddress, localPort);
+            ThreadPool.QueueUserWorkItem(HandleAccepted, listenCancelTokenSource.Token);
+            logger.LogDebug("Listen Pipe Server: {0}", pipeName);
         }
 
-        private void HandleAccepted(IAsyncResult result)
+        private async void HandleAccepted(Object? state)
         {
+            var cancelToken = (CancellationToken)state;
             try
             {
-                var cancelToken = (CancellationToken)result.AsyncState!;
-                if (cancelToken.IsCancellationRequested) return;
-                Socket clientSocket = socket.EndAccept(result);
-                _ = OnConnectedAsync(clientSocket, cancelToken);
-                if (cancelToken.IsCancellationRequested) return;
-                socket.BeginAccept(new AsyncCallback(HandleAccepted), cancelToken);
+                while (!cancelToken.IsCancellationRequested)
+                {
+                    var server = new NamedPipeServerStream("", PipeDirection.InOut, 999, PipeTransmissionMode.Byte, System.IO.Pipes.PipeOptions.Asynchronous);
+                    await server.WaitForConnectionAsync(cancelToken);
+                    _ = OnConnectedAsync(server, cancelToken);
+                }
             }
             catch (ObjectDisposedException)
             {
@@ -98,7 +113,7 @@ namespace PacketNet.Network
         public async Task StopAsync()
         {
             listenCancelTokenSource?.Cancel();
-            base.Dispose();
+
             var count = Interlocked.Read(ref _currentConnectionCounter);
             if (stopCompleted != null && count > 0)
             {
@@ -108,24 +123,22 @@ namespace PacketNet.Network
             listenCancelTokenSource = null;
         }
 
-        private async Task OnConnectedAsync(Socket socket, CancellationToken cancellationToken)
+        private async Task OnConnectedAsync(NamedPipeServerStream serverStream, CancellationToken cancellationToken)
         {
-            NetworkStream networkStream = null;
-            InternalNetSession session = null;
+            InternalPipeSession session = null;
             long minimumReadSize = MinimumPacketLength;
             try
             {
                 Interlocked.Increment(ref _currentConnectionCounter);
-                networkStream = new NetworkStream(socket, ownsSocket: true);
-                var reader = PipeReader.Create(networkStream);
+                var reader = PipeReader.Create(serverStream);
                 session = sessionPool.Get();
                 session.ConnectionId = Interlocked.Increment(ref ConnectionIdSource);
                 session.ConnectTime = TimeService.Default.Now();
-                session.Init(networkStream);
+                session.Init(serverStream);
                 var allowConnect = await this.OnConnected(session);
                 if (allowConnect)
                 {
-                    while (!cancellationToken.IsCancellationRequested && socket.Connected)
+                    while (!cancellationToken.IsCancellationRequested && serverStream.IsConnected)
                     {
                         var result = await reader.ReadAtLeastAsync((int)minimumReadSize, cancellationToken);
                         if (result.IsCompleted) break;
@@ -173,15 +186,15 @@ namespace PacketNet.Network
             }
             finally
             {
-                socket.Close();
-                if (networkStream != null)
+
+                if (serverStream != null)
                 {
-                    await networkStream.DisposeAsync();
-                    networkStream = null;
+                    serverStream.Disconnect();
+                    await serverStream.DisposeAsync();
+                    serverStream = null;
                 }
                 if (session != null)
                 {
-
                     await this.OnClose(session);
                     sessionPool.Return(session);
                 }
@@ -192,65 +205,8 @@ namespace PacketNet.Network
                         stopCompleted?.TrySetResult();
                     }
                 }
-
             }
-
         }
 
-
-
-
-        /// <summary>
-        /// 新的客户端连接事件
-        /// </summary>
-        /// <param name="session"></param>
-        /// <returns></returns>
-        protected virtual ValueTask<bool> OnConnected(IConnectionSession session)
-        {
-            return new ValueTask<bool>(true);
-        }
-
-        /// <summary>
-        /// 客户端连接关闭
-        /// </summary>
-        /// <param name="session"></param>
-        /// <returns></returns>
-        protected virtual ValueTask OnClose(IConnectionSession session)
-        {
-            return ValueTask.CompletedTask;
-        }
-
-        /// <summary>
-        /// Socket 不可恢复的异常
-        /// </summary>
-        /// <param name="session"></param>
-        /// <param name="ex"></param>
-        /// <returns></returns>
-        protected virtual ValueTask OnError(IConnectionSession session, Exception ex)
-        {
-            return ValueTask.CompletedTask;
-        }
-
-        /// <summary>
-        /// 收到任意封包，进行自定义解析
-        /// </summary>
-        /// <param name="session"></param>
-        /// <param name="sequence"></param>
-        /// <returns></returns>
-        protected virtual ValueTask<UInt32> OnPacket(IConnectionSession session, ReadOnlySequence<Byte> sequence)
-        {
-            return new ValueTask<uint>((UInt32)sequence.Length);
-        }
-
-        /// <summary>
-        /// 收到一个完整封包
-        /// </summary>
-        /// <param name="session"></param>
-        /// <param name="sequence"></param>
-        /// <returns></returns>
-        protected virtual ValueTask OnReceive(IConnectionSession session, ReadOnlySequence<byte> sequence)
-        {
-            return ValueTask.CompletedTask;
-        }
     }
 }

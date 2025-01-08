@@ -10,7 +10,7 @@ namespace Examples
         public long count = 0;
         private readonly AsyncMessageRouter msgRouter;
         private readonly Serilog.ILogger logger = Log.ForContext<TCPServer>();
-        private readonly Channel<AbstractNetMessage> messageChannel = Channel.CreateUnbounded<AbstractNetMessage>();
+        private readonly Channel<AbstractNetMessage> messageChannel = Channel.CreateUnbounded<AbstractNetMessage>(new UnboundedChannelOptions() { SingleReader = true, SingleWriter = true });
         public MessageProcessor()
         {
             msgRouter = new AsyncMessageRouter(this);

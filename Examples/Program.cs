@@ -1,7 +1,9 @@
 
 using Examples;
 using PacketNet.Message;
+using PacketNet.Pipes;
 using Serilog;
+using System.IO.Pipes;
 
 namespace PacketNet
 {
@@ -64,12 +66,23 @@ namespace PacketNet
                 services.AddHostedService(provider => provider.GetRequiredService<ExampleServer>());
             }
 
-
             if (Environment.CommandLine.Contains("client"))
             {
                 services.AddSingleton<TestService>();
                 services.AddHostedService(provider => provider.GetRequiredService<TestService>());
             }
+
+
+
+
+            services.AddSingleton<TestPipeSevice>();
+            services.AddHostedService(provider => provider.GetRequiredService<TestPipeSevice>());
+
+
+
+
+
+
             Console.WriteLine();
 
         }

@@ -1,19 +1,18 @@
-﻿using System;
+﻿using PacketNet.Network;
+using System;
 using System.Buffers;
 using System.IO.Pipelines;
+using System.IO.Pipes;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading.Tasks;
 
-namespace PacketNet.Network
+namespace PacketNet.Pipes
 {
-
-
-
-    internal class InternalSession : IConnectionSession
+    internal class InternalPipeSession : IConnectionSession
     {
-        private Socket _socket;
         private PipeWriter writer;
+        private NamedPipeServerStream stream;
 
         public Int64 ConnectionId { get; set; }
         public Object[] Datas { get; } = [null, null, null, null, null];
@@ -26,22 +25,23 @@ namespace PacketNet.Network
 
         public void Close(SessionShutdownCause cause)
         {
-            _socket?.Close();
-            _socket = null;
+            stream?.Disconnect();
+            stream?.Close();
             CloseCause = cause;
         }
 
 
-        internal void Init(NetworkStream networkStream)
+        internal void Init(NamedPipeServerStream stream)
         {
-            this._socket = networkStream.Socket;
-            this.writer = PipeWriter.Create(networkStream);
-            this.RemoteEndPoint = _socket.RemoteEndPoint;
+            this.stream = stream;
+            this.writer = PipeWriter.Create(stream);
         }
 
-        internal void Clean()
+
+        public void Clean()
         {
-            this._socket = null;
+            if (this.stream != null) Close(SessionShutdownCause.NONE);
+            this.stream = null;
             this.writer = null;
             this.RemoteEndPoint = null;
             this.ConnectTime = default;
