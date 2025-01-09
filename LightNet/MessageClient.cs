@@ -58,7 +58,13 @@ namespace LightNet
             return new UnPacketResult(result == ParseResult.Ok, length);
         }
 
-
+        /// <summary>
+        /// 收到消息处理 
+        /// 使用消息池时，需要自行执行message.Return()处理消息归还
+        /// </summary>
+        /// <param name="session"></param>
+        /// <param name="message"></param>
+        /// <returns></returns>
         public abstract ValueTask OnReceive(IConnectionSession session, AbstractNetMessage message);
     }
 }
