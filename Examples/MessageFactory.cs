@@ -1,4 +1,4 @@
-﻿using PacketNet.Message;
+﻿using LightNet.Message;
 
 
 namespace Examples

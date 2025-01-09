@@ -1,6 +1,5 @@
-﻿using PacketNet;
-using PacketNet.Message;
-using PacketNet.Network;
+﻿using LightNet;
+using LightNet.Message;
 using System.Buffers;
 
 namespace Examples.Services
@@ -8,10 +7,10 @@ namespace Examples.Services
     public class TestServerService : MessageServer, IHostedService
     {
         private readonly ILogger<TestServerService> logger;
-        private readonly MessageProcessor messageProcessor;
+        private readonly TestMessageProcessService messageProcessor;
         private readonly ApplicationOptions applicationOptions;
 
-        public TestServerService(ILogger<TestServerService> _logger, MessageProcessor _messageProcessor, ApplicationOptions applicationOptions)
+        public TestServerService(ILogger<TestServerService> _logger, TestMessageProcessService _messageProcessor, ApplicationOptions applicationOptions)
         {
             this.applicationOptions = applicationOptions;
             messageProcessor = _messageProcessor;

@@ -1,0 +1,90 @@
+﻿using System;
+using System.Buffers;
+using System.IO.Pipelines;
+using System.Net;
+using System.Net.Sockets;
+using System.Threading.Tasks;
+
+namespace LightNet.Internals
+{
+
+    internal class InternalNetSession : IConnectionSession
+    {
+        private Socket _socket;
+        private PipeWriter writer;
+
+        public long ConnectionId { get; set; }
+        public object[] Datas { get; } = [null, null, null, null, null];
+        public EndPoint RemoteEndPoint { get; set; }
+        public DateTime ConnectTime { get; set; }
+
+        public SessionShutdownCause CloseCause { get; private set; }
+
+        public IBufferWriter<byte> Writer => writer;
+
+        public void Close(SessionShutdownCause cause)
+        {
+            _socket?.Close();
+            _socket = null;
+            CloseCause = cause;
+        }
+
+
+        internal void Init(NetworkStream networkStream)
+        {
+            _socket = networkStream.Socket;
+            writer = PipeWriter.Create(networkStream);
+            RemoteEndPoint = _socket.RemoteEndPoint;
+        }
+
+        public void Clean()
+        {
+            _socket = null;
+            writer = null;
+            RemoteEndPoint = null;
+            ConnectTime = default;
+            Datas[0] = Datas[1] = Datas[2] = Datas[3] = Datas[4] = null;
+            ConnectionId = 0;
+        }
+
+
+        public void Write(ReadOnlySpan<byte> buffer)
+        {
+            writer?.Write(buffer);
+        }
+
+        public void Write(ReadOnlyMemory<byte> buffer)
+        {
+            writer?.Write(buffer.Span);
+        }
+
+        public void Write(ArraySegment<byte> buffer)
+        {
+            writer?.Write(buffer);
+        }
+
+        public async ValueTask WriteAsync(ArraySegment<byte> buffer)
+        {
+            if (writer != null)
+            {
+                await writer.WriteAsync(buffer);
+            }
+        }
+
+        public async ValueTask WriteAsync(ReadOnlyMemory<byte> buffer)
+        {
+            if (writer != null)
+            {
+                await writer.WriteAsync(buffer);
+            }
+        }
+
+        public async ValueTask FlushAsync()
+        {
+            if (writer != null)
+            {
+                await writer.FlushAsync();
+            }
+        }
+    }
+}

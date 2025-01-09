@@ -1,11 +1,10 @@
 
 using Examples;
 using Examples.Services;
-using Microsoft.Extensions.DependencyInjection;
-using PacketNet.Message;
+using LightNet.Message;
 using Serilog;
 
-namespace PacketNet
+namespace LightNet
 {
 
 
@@ -47,24 +46,25 @@ namespace PacketNet
             ipBlock.Add("127.0.0.1");
             ipBlock.Add("192.168.1.1/24");
 
-            var appOptions = new ApplicationOptions("pipe");
+            var appOptions = new ApplicationOptions();
 
             services.AddSingleton<ApplicationOptions>(appOptions);
 
-
-
             services.AddSingleton<IPBlacklistTrie>(ipBlock);
             services.AddSingleton<MessageResolver>(MessageResolver.Default);
-            services.AddSingleton<GMessageParser>();
+            services.AddSingleton<MessageParser>();
 
             services.AddTimeService();
 
-            services.AddSingleton<MessageProcessor>();
-            services.AddHostedService(provider => provider.GetRequiredService<MessageProcessor>());
 
 
             services.AddSingleton<TestMessageService>();
             services.AddHostedService(provider => provider.GetRequiredService<TestMessageService>());
+
+
+            services.AddSingleton<TestMessageProcessService>();
+            services.AddHostedService(provider => provider.GetRequiredService<TestMessageProcessService>());
+
 
 
             if (Environment.CommandLine.Contains("server"))

@@ -1,10 +1,11 @@
-﻿using PacketNet.Message;
+﻿using LightNet.Message;
 using System.Buffers;
 
 
 namespace Examples
 {
-    [MyMessage<ExampleMessage>(MessageKind.Example, 100000)]
+
+    [Message<ExampleMessage>(MessageKind.Example,10000)]
     public class ExampleMessage : AbstractNetMessage
     {
         public Int64 X = 123;
@@ -28,7 +29,7 @@ namespace Examples
     /// 
     /// </summary>
     //[UsePool()] 
-    [MyMessage<GatewayMessage>(MessageKind.Gateway, 100000)]
+    [Message<GatewayMessage>(MessageKind.Gateway, 100000)]
     public class GatewayMessage : AbstractNetMessage
     {
         public Int32 ChannalId;

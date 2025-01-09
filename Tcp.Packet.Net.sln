@@ -5,7 +5,7 @@ VisualStudioVersion = 17.12.35527.113
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Examples", "Examples\Examples.csproj", "{9AFE7DAE-B043-4A86-AAA7-172049314973}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PacketNet", "PacketNet\PacketNet.csproj", "{79044003-7627-4028-BBE3-6169A3F51D2E}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LightNet", "LightNet\LightNet.csproj", "{65F20025-614D-4D81-A7B8-8F82D3576139}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -17,10 +17,10 @@ Global
 		{9AFE7DAE-B043-4A86-AAA7-172049314973}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{9AFE7DAE-B043-4A86-AAA7-172049314973}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{9AFE7DAE-B043-4A86-AAA7-172049314973}.Release|Any CPU.Build.0 = Release|Any CPU
-		{79044003-7627-4028-BBE3-6169A3F51D2E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{79044003-7627-4028-BBE3-6169A3F51D2E}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{79044003-7627-4028-BBE3-6169A3F51D2E}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{79044003-7627-4028-BBE3-6169A3F51D2E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{65F20025-614D-4D81-A7B8-8F82D3576139}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{65F20025-614D-4D81-A7B8-8F82D3576139}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{65F20025-614D-4D81-A7B8-8F82D3576139}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{65F20025-614D-4D81-A7B8-8F82D3576139}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

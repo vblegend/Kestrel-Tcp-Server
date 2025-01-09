@@ -1,6 +1,5 @@
-﻿using PacketNet;
-using PacketNet.Message;
-using PacketNet.Pools;
+﻿using LightNet;
+using LightNet.Message;
 using System.Buffers;
 using System.Diagnostics;
 
@@ -11,11 +10,12 @@ namespace Examples.Services
     {
         private readonly ILogger<TestClientService> logger;
         private readonly ApplicationOptions applicationOptions;
-        private CancellationTokenSource sendToken;
-
+        private CancellationTokenSource? sendToken;
+        private IConnectionSession session;
         public TestClientService(ILogger<TestClientService> _logger, ApplicationOptions applicationOptions)
         {
             logger = _logger;
+            sendToken = null;
             this.applicationOptions = applicationOptions;
         }
 
@@ -34,10 +34,10 @@ namespace Examples.Services
                         {
                             var message = MessageFactory.Create<ExampleMessage>();
                             message.X = 19201080;
-                            Write(message);
+                            session.Write(message);
                             message.Return();
                         }
-                        await FlushAsync();
+                        await session.FlushAsync();
                     }
                     catch (Exception)
                     {
@@ -70,25 +70,27 @@ namespace Examples.Services
             await Task.CompletedTask;
         }
 
-        public override async ValueTask OnConnection(IPacketClient client)
+        public override async ValueTask OnConnection(IConnectionSession session)
         {
+            this.session = session;
             logger.LogInformation("客户端成功连接至: {0}", applicationOptions.ClientUri);
-            await WriteFlushAsync(MessageFactory.ExampleMessage(251));
+            await session.WriteFlushAsync(MessageFactory.ExampleMessage(251));
         }
 
-        public override async ValueTask OnClose(IPacketClient client)
+        public override async ValueTask OnClose(IConnectionSession session)
         {
+            session = null;
             logger.LogInformation("客户端关闭。");
             await ValueTask.CompletedTask;
         }
 
-        public override async ValueTask OnError(Exception exception)
+        public override async ValueTask OnError(IConnectionSession session, Exception exception)
         {
             logger.LogInformation("客户端异常。 {0}", exception);
             await ValueTask.CompletedTask;
         }
 
-        public override async ValueTask OnReceive(AbstractNetMessage message)
+        public override async ValueTask OnReceive(IConnectionSession session, AbstractNetMessage message)
         {
             message.Return();
             logger.LogInformation("客户端收到消息。 {0}", message.Kind);

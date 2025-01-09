@@ -1,15 +1,15 @@
-﻿using PacketNet;
-using PacketNet.Message;
-using PacketNet.Pools;
+﻿using LightNet;
+using LightNet.Message;
+using LightNet.Pools;
 using System.Buffers;
 
 namespace Examples.Services
 {
     public class TestMessageService : IHostedService
     {
-        private readonly GMessageParser messageParser;
+        private readonly MessageParser messageParser;
         private readonly ILogger logger;
-        public TestMessageService(GMessageParser messageParser, ILogger<TestClientService> _logger, TimeService timeService)
+        public TestMessageService(MessageParser messageParser, ILogger<TestClientService> _logger, TimeService timeService)
         {
             logger = _logger;
             this.messageParser = messageParser;
@@ -35,6 +35,7 @@ namespace Examples.Services
                 var reader = new SequenceReader<byte>(new ReadOnlySequence<byte>(stream.ToArray()));
                 messageParser.Parse(reader, out var msg);
             }
+            await Task.CompletedTask;
         }
 
         public async Task StopAsync(CancellationToken cancellationToken)
