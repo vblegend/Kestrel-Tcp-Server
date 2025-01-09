@@ -172,7 +172,7 @@ namespace LightNet.Network
             }
             catch (OperationCanceledException)
             {
-                session?.Close(SessionShutdownCause.SERVER_SHUTTING_DOWN);
+                session?.Close(SessionShutdownCause.SHUTTING_DOWN);
             }
             catch (Exception ex)
             {
@@ -180,7 +180,7 @@ namespace LightNet.Network
                 {
                     if (socketEx.SocketErrorCode == SocketError.ConnectionReset || socketEx.SocketErrorCode == SocketError.ConnectionAborted)
                     {
-                        session?.Close(SessionShutdownCause.CLIENT_DISCONNECTED);
+                        session?.Close(SessionShutdownCause.UNEXPECTED_DISCONNECTED);
                         // 客户端主动关闭
                     }
                     else

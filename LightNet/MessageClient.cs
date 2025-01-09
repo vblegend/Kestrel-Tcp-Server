@@ -46,6 +46,13 @@ namespace LightNet
             await packetClient.ConnectAsync(remoteUri, cancellationToken);
         }
 
+        public async Task CloseAsync()
+        {
+            await packetClient.CloseAsync();
+            packetClient = null;
+        }
+
+
 
         public override async ValueTask<UnPacketResult> OnPacket(IConnectionSession session, ReadOnlySequence<byte> sequence)
         {

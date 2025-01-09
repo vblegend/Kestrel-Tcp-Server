@@ -5,7 +5,9 @@ using System.Threading.Tasks;
 
 namespace LightNet
 {
-
+    /// <summary>
+    /// 会话关闭原因
+    /// </summary>
     public enum SessionShutdownCause
     {
         /// <summary>
@@ -14,32 +16,37 @@ namespace LightNet
         NONE = 0,
 
         /// <summary>
-        /// 客户端协商断开
+        /// 协商断开
         /// </summary>
         GRACEFUL = 1,
 
         /// <summary>
-        /// 客户端意外断开
+        /// 意外断开
         /// </summary>
-        CLIENT_DISCONNECTED = 2,
+        UNEXPECTED_DISCONNECTED = 2,
 
         /// <summary>
-        /// 服务器关闭
+        /// 服务关闭
         /// </summary>
-        SERVER_SHUTTING_DOWN = 3,
+        SHUTTING_DOWN = 3,
 
         /// <summary>
-        /// 客户端非法数据
+        /// 非法数据
         /// </summary>
-        CLIENT_ILLEGAL_DATA = 4,
+        ILLEGAL_DATA = 4,
 
     }
 
 
-
+    /// <summary>
+    /// 连接上下文会话
+    /// </summary>
     public interface IConnectionSession
     {
-
+        /// <summary>
+        /// 断开原因
+        /// </summary>
+        public SessionShutdownCause CloseCause { get; }
         /// <summary>
         /// 连接ID，递增，本次启动期间不会重复
         /// </summary>

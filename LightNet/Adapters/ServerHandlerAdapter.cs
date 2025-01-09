@@ -37,12 +37,16 @@ namespace LightNet.Adapters
         }
 
         /// <summary>
-        /// 是否为完整的封包，为true时表示数据已被处理，返回false下次等待封包数据长度大于等于Length时再触发OnPacket
+        /// 是否为完整的封包，
+        /// 返回true时表示数据已被处理，Length=当前处理报文长度
+        /// 返回false时表示报文不完整，Length=下次触发OnPacket时最小报文长度
         /// </summary>
         public readonly bool IsCompleted;
 
         /// <summary>
-        /// 封包长度，当IsCompleted=false时 Length为下次读取封包最小长度
+        /// 封包长度，
+        /// 当IsCompleted=true 时 Length为当前已处理报文长度
+        /// 当IsCompleted=false时 Length为下次读取封包最小长度
         /// </summary>
         public readonly long Length;
 

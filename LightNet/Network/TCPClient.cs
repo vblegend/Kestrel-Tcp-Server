@@ -8,6 +8,7 @@ using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 using LightNet.Internals;
+using static System.Collections.Specialized.BitVector32;
 
 namespace LightNet.Network
 {
@@ -18,7 +19,8 @@ namespace LightNet.Network
         private CancellationTokenSource cancelTokenSource = null;
         private NetworkStream networkStream = null;
         private ClientHandlerAdapter handlerAdapter = null;
-
+        private TaskCompletionSource stopCompleted = null;
+        private readonly InternalNetSession session = new InternalNetSession();
         public void SetAdapter(ClientHandlerAdapter handlerAdapter)
         {
             this.handlerAdapter = handlerAdapter;
@@ -56,18 +58,20 @@ namespace LightNet.Network
             _ = OnConnectedAsync(socket, cancelTokenSource.Token);
         }
 
-        public void Close()
+        public async Task CloseAsync()
         {
+            session.Close(SessionShutdownCause.SHUTTING_DOWN);
             cancelTokenSource?.Cancel();
-            socket.Close();
             cancelTokenSource = null;
+            if (stopCompleted != null) await stopCompleted.Task;
         }
 
 
         private async Task OnConnectedAsync(Socket socket, CancellationToken cancellationToken)
         {
+            stopCompleted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             long minimumReadSize = _minimumPacketLength;
-            var session = new InternalNetSession();
+            
             try
             {
                 networkStream = new NetworkStream(socket, true);
@@ -79,7 +83,11 @@ namespace LightNet.Network
                 while (!cancellationToken.IsCancellationRequested && socket.Connected)
                 {
                     var result = await reader.ReadAtLeastAsync((int)minimumReadSize, cancellationToken);
-                    if (result.IsCompleted) break;
+                    if (result.IsCompleted)
+                    {
+                        session.Close(SessionShutdownCause.UNEXPECTED_DISCONNECTED);
+                        break;
+                    }
                     var parseResult = await handlerAdapter.OnPacket(session, result.Buffer);
                     if (parseResult.IsCompleted)
                     {
@@ -105,6 +113,7 @@ namespace LightNet.Network
                 networkStream = null;
                 await handlerAdapter.OnClose(session);
                 session.Clean();
+                stopCompleted?.TrySetResult();
             }
         }
 
@@ -120,7 +129,7 @@ namespace LightNet.Network
 
         public override void Dispose()
         {
-            Close();
+            CloseAsync().Wait();
         }
 
 

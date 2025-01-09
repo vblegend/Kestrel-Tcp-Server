@@ -33,7 +33,7 @@ namespace LightNet
         /// <summary>
         /// 关闭客户端连接
         /// </summary>
-        void Close();
+        Task CloseAsync();
 
         /// <summary>
         /// 获取/设置 触发OnPacket事件的最小封包长度

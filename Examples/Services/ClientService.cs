@@ -11,7 +11,7 @@ namespace Examples.Services
         private readonly ILogger<ClientService> logger;
         private readonly ApplicationOptions applicationOptions;
         private CancellationTokenSource? sendToken;
-        private IConnectionSession session;
+        private IConnectionSession? session;
         public ClientService(ILogger<ClientService> _logger, ApplicationOptions applicationOptions)
         {
             logger = _logger;
@@ -34,10 +34,10 @@ namespace Examples.Services
                         {
                             var message = MessageFactory.Create<ExampleMessage>();
                             message.X = 19201080;
-                            session.Write(message);
+                            session?.Write(message);
                             message.Return();
                         }
-                        await session.FlushAsync();
+                        if (session != null) await session.FlushAsync();
                     }
                     catch (Exception)
                     {
@@ -59,6 +59,7 @@ namespace Examples.Services
         public async Task StartAsync(CancellationToken cancellationToken)
         {
             await ConnectAsync(applicationOptions.ClientUri, cancellationToken);
+            //await base.CloseAsync();
             sendToken = StartSendMessage();
             await Task.CompletedTask;
         }
@@ -67,7 +68,6 @@ namespace Examples.Services
         {
             sendToken?.Cancel();
             logger.LogInformation("TestService.StopAsync()");
-            await Task.CompletedTask;
         }
 
         public override async ValueTask OnConnection(IConnectionSession session)
@@ -79,8 +79,8 @@ namespace Examples.Services
 
         public override async ValueTask OnClose(IConnectionSession session)
         {
-            session = null;
-            logger.LogInformation("客户端关闭。");
+            this.session = null;
+            logger.LogInformation("客户端关闭, 原因：{0}", session.CloseCause);
             await ValueTask.CompletedTask;
         }
 

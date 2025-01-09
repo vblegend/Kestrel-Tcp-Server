@@ -9,6 +9,7 @@ using System.IO.Pipes;
 using System.Threading;
 using System.Threading.Tasks;
 using LightNet.Internals;
+using static System.Collections.Specialized.BitVector32;
 
 namespace LightNet.Pipes
 {
@@ -19,7 +20,8 @@ namespace LightNet.Pipes
         private CancellationTokenSource cancelTokenSource = null;
         private NamedPipeClientStream stream = null;
         private ClientHandlerAdapter handlerAdapter = null;
-
+        private TaskCompletionSource stopCompleted = null;
+        private readonly InternalPipeSession session = new InternalPipeSession();
         public void SetAdapter(ClientHandlerAdapter handlerAdapter)
         {
             this.handlerAdapter = handlerAdapter;
@@ -46,24 +48,27 @@ namespace LightNet.Pipes
         {
             if (cancelTokenSource != null) throw new Exception("不能重复连接");
             cancelTokenSource = new CancellationTokenSource();
-            stream = new NamedPipeClientStream(serverName, pipeName, PipeDirection.InOut, System.IO.Pipes.PipeOptions.Asynchronous);
-
+            var stream = new NamedPipeClientStream(serverName, pipeName, PipeDirection.InOut, System.IO.Pipes.PipeOptions.Asynchronous);
             await stream.ConnectAsync(cancellationToken);
-            _ = OnConnectedAsync(cancelTokenSource.Token);
+            _ = OnConnectedAsync(stream, cancelTokenSource.Token);
         }
 
-        public void Close()
+        public async Task CloseAsync()
         {
+            session.Close(SessionShutdownCause.SHUTTING_DOWN);
             cancelTokenSource?.Cancel();
-            stream.Dispose();
+            stream?.Dispose();
             cancelTokenSource = null;
+            if (stopCompleted != null) await stopCompleted.Task;
         }
 
 
-        private async Task OnConnectedAsync(CancellationToken cancellationToken)
+        private async Task OnConnectedAsync(NamedPipeClientStream stream, CancellationToken cancellationToken)
         {
+            this.stream = stream;
+            stopCompleted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             long minimumReadSize = _minimumPacketLength;
-            var session = new InternalPipeSession();
+            
             try
             {
                 session.ConnectionId = 0;
@@ -74,7 +79,11 @@ namespace LightNet.Pipes
                 while (!cancellationToken.IsCancellationRequested && stream.IsConnected)
                 {
                     var result = await reader.ReadAtLeastAsync((int)minimumReadSize, cancellationToken);
-                    if (result.IsCompleted) break;
+                    if (result.IsCompleted)
+                    {
+                        session.Close(SessionShutdownCause.UNEXPECTED_DISCONNECTED);
+                        break;
+                    }
                     var parseResult = await handlerAdapter.OnPacket(session, result.Buffer);
                     if (parseResult.IsCompleted)
                     {
@@ -101,6 +110,7 @@ namespace LightNet.Pipes
                 stream = null;
                 await handlerAdapter.OnClose(session);
                 session.Clean();
+                stopCompleted?.TrySetResult();
             }
         }
 
@@ -117,7 +127,7 @@ namespace LightNet.Pipes
 
         public void Dispose()
         {
-            Close();
+            CloseAsync().Wait();
         }
 
         public UInt32 MinimumPacketLength
