@@ -4,13 +4,13 @@ using System.Buffers;
 
 namespace Examples.Services
 {
-    public class TestServerService : MessageServer, IHostedService
+    public class ServerService : MessageServer, IHostedService
     {
-        private readonly ILogger<TestServerService> logger;
-        private readonly TestMessageProcessService messageProcessor;
+        private readonly ILogger<ServerService> logger;
+        private readonly ProcessService messageProcessor;
         private readonly ApplicationOptions applicationOptions;
 
-        public TestServerService(ILogger<TestServerService> _logger, TestMessageProcessService _messageProcessor, ApplicationOptions applicationOptions)
+        public ServerService(ILogger<ServerService> _logger, ProcessService _messageProcessor, ApplicationOptions applicationOptions)
         {
             this.applicationOptions = applicationOptions;
             messageProcessor = _messageProcessor;

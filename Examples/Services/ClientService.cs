@@ -6,13 +6,13 @@ using System.Diagnostics;
 
 namespace Examples.Services
 {
-    public class TestClientService : MessageClient, IHostedService
+    public class ClientService : MessageClient, IHostedService
     {
-        private readonly ILogger<TestClientService> logger;
+        private readonly ILogger<ClientService> logger;
         private readonly ApplicationOptions applicationOptions;
         private CancellationTokenSource? sendToken;
         private IConnectionSession session;
-        public TestClientService(ILogger<TestClientService> _logger, ApplicationOptions applicationOptions)
+        public ClientService(ILogger<ClientService> _logger, ApplicationOptions applicationOptions)
         {
             logger = _logger;
             sendToken = null;

@@ -4,13 +4,13 @@ using System.Threading.Channels;
 
 namespace Examples.Services
 {
-    public class TestMessageProcessService : IMessageProcessor, IHostedService
+    public class ProcessService : IMessageProcessor, IHostedService
     {
         public long count = 0;
         private readonly AsyncMessageRouter msgRouter;
-        private readonly ILogger<TestMessageProcessService> logger = LoggerProvider.CreateLogger<TestMessageProcessService>();
+        private readonly ILogger<ProcessService> logger = LoggerProvider.CreateLogger<ProcessService>();
         private readonly Channel<AbstractNetMessage> messageChannel = Channel.CreateUnbounded<AbstractNetMessage>(new UnboundedChannelOptions() { SingleReader = true, SingleWriter = true });
-        public TestMessageProcessService()
+        public ProcessService()
         {
             msgRouter = new AsyncMessageRouter(this);
         }

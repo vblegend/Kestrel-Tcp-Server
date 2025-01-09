@@ -5,11 +5,11 @@ using System.Buffers;
 
 namespace Examples.Services
 {
-    public class TestMessageService : IHostedService
+    public class TestService : IHostedService
     {
         private readonly MessageParser messageParser;
         private readonly ILogger logger;
-        public TestMessageService(MessageParser messageParser, ILogger<TestClientService> _logger, TimeService timeService)
+        public TestService(MessageParser messageParser, ILogger<ClientService> _logger, TimeService timeService)
         {
             logger = _logger;
             this.messageParser = messageParser;
