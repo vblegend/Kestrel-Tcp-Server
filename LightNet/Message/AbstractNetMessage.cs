@@ -33,7 +33,7 @@ namespace LightNet.Message
         /// 从缓存读取消息内容
         /// </summary>
         /// <param name="reader"></param>
-        public abstract void Read(SequenceReader<byte> reader);
+        public abstract void Read(ref SequenceReader<byte> reader);
 
         /// <summary>
         /// 将消息内容写入缓存
@@ -48,7 +48,7 @@ namespace LightNet.Message
         {
             Reset();
             Session = null;
-            if (_pool != null) _pool.Return(this);
+            _pool?.Return(this);
         }
 
         /// <summary>

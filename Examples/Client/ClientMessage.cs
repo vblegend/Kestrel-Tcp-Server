@@ -8,12 +8,12 @@ namespace Examples.Client
 
 
 
-    //[Message<ClientMessage>(ClientMessageKind.Example, 10000)]
+
     [Message(ClientMessageKind.Example, 10000)]
     public class ClientMessage : CSMessage
     {
         public long X = 123;
-        public override void Read(SequenceReader<byte> reader)
+        public override void Read(ref SequenceReader<byte> reader)
         {
             reader.TryRead(out X);
         }

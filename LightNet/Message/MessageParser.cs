@@ -20,7 +20,7 @@ namespace LightNet.Message
         // 474D 00 1300 02 00000000 08 FFFFFFFFFFFFFF7F
 
 
-        public ParseResult TryParse(SequenceReader<byte> reader, MessageResolver messageResolver, out AbstractNetMessage message, out UInt16 needLength)
+        public ParseResult TryParse(ref SequenceReader<byte> reader, MessageResolver messageResolver, out AbstractNetMessage message, out UInt16 needLength)
         {
             message = default;
             needLength = 0;
@@ -28,12 +28,15 @@ namespace LightNet.Message
             if (header != AbstractNetMessage.Header) return ParseResult.Illicit;
             reader.TryRead<MessageFlags>(out var flags);
             reader.TryRead<UInt16>(out needLength);
-            if (reader.Length < needLength) return ParseResult.Partial;
+
+
+            if (reader.Remaining < needLength - 5) 
+                return ParseResult.Partial;
             var kl = GetKindLen(flags);
             reader.TryRead(kl, out Int16 kind);
             reader.TryRead(out UInt64 time);
             message = messageResolver.Resolver(kind);
-            message.Read(new SequenceReader<byte>(reader.UnreadSequence));
+            message.Read(ref reader);
             return ParseResult.Ok;
         }
 
@@ -50,7 +53,7 @@ namespace LightNet.Message
             reader.TryRead(kl, out Int16 kind);
             reader.TryRead(out UInt64 time);
             message = messageResolver.Resolver(kind);
-            message.Read(new SequenceReader<byte>(reader.UnreadSequence));
+            message.Read(ref reader);
             return ParseResult.Ok;
         }
 

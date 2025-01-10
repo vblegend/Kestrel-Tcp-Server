@@ -21,14 +21,14 @@ namespace LightNet.Network
 
 
 
-        public int ReceiveBufferSize
+        public virtual int ReceiveBufferSize
         {
             get { return (int)socket.GetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReceiveBuffer)!; }
             set { socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReceiveBuffer, value); }
         }
 
         // Gets or sets the size of the send buffer in bytes.
-        public int SendBufferSize
+        public virtual int SendBufferSize
         {
             get { return (int)socket.GetSocketOption(SocketOptionLevel.Socket, SocketOptionName.SendBuffer)!; }
             set { socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.SendBuffer, value); }

@@ -38,7 +38,7 @@ namespace LightNet.Adapters
         /// </summary>
         /// <param name="sequence"></param>
         /// <returns></returns>
-        public abstract ValueTask<UnPacketResult> OnPacket(IConnectionSession session, ReadOnlySequence<byte> sequence);
+        public abstract UnPacketResult OnPacket(IConnectionSession session, ref SequenceReader<byte> reader);
 
     }
 }

@@ -46,7 +46,7 @@ namespace Examples.Services
         {
             count++;
             //await session.WriteFlushAsync(MessageFactory.ExampleMessage(count));
-            if (count % 100000 == 0)
+            if (count % 1000000 == 0)
             {
                 logger.LogInformation("Received packet: {0}", count);
             }

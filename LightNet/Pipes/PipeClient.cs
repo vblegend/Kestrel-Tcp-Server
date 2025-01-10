@@ -22,6 +22,38 @@ namespace LightNet.Pipes
         private ClientHandlerAdapter handlerAdapter = null;
         private TaskCompletionSource stopCompleted = null;
         private readonly InternalPipeSession session = new InternalPipeSession();
+
+
+
+        private Int32 receiveBufferSize = 8192;
+
+        private Int32 sendBufferSize = 8192;
+
+        public int ReceiveBufferSize
+        {
+            get
+            {
+                return receiveBufferSize;
+            }
+            set
+            {
+                receiveBufferSize = value;
+            }
+        }
+
+        public int SendBufferSize
+        {
+            get
+            {
+                return sendBufferSize;
+            }
+            set
+            {
+                sendBufferSize = value;
+            }
+        }
+
+
         public void SetAdapter(ClientHandlerAdapter handlerAdapter)
         {
             this.handlerAdapter = handlerAdapter;
@@ -40,6 +72,14 @@ namespace LightNet.Pipes
             var querys = QueryHelpers.ParseQuery(remoteUri.Query);
             if (!querys.ContainsKey("name")) throw new Exception("缺少参数 name");
             var uname = querys["name"];
+            if (querys.TryGetValue("readBuffer", out var readBufferSize))
+            {
+                this.ReceiveBufferSize = Int32.Parse(readBufferSize);
+            }
+            if (querys.TryGetValue("writeBuffer", out var writeBufferSize))
+            {
+                this.SendBufferSize = Int32.Parse(writeBufferSize);
+            }
             await ConnectAsync(remoteUri.Host, uname, cancellationToken);
         }
 
@@ -71,24 +111,34 @@ namespace LightNet.Pipes
             {
                 session.ConnectionId = 0;
                 session.ConnectTime = TimeService.Default.Now();
-                session.Init(stream);
-                var reader = PipeReader.Create(stream);
+                session.Init(stream, sendBufferSize);
+                var reader = PipeReader.Create(stream, new StreamPipeReaderOptions(bufferSize: receiveBufferSize));
                 await handlerAdapter.OnConnection(session);
                 while (!cancellationToken.IsCancellationRequested && stream.IsConnected)
                 {
                     var result = await reader.ReadAtLeastAsync((int)minimumReadSize, cancellationToken);
                     if (result.IsCompleted) break;
-                    var parseResult = await handlerAdapter.OnPacket(session, result.Buffer);
-                    if (parseResult.IsCompleted)
+                    minimumReadSize = _minimumPacketLength;
+                    var bufferReader = new SequenceReader<byte>(result.Buffer);
+                    Int64 len = 0;
+                    while (bufferReader.Remaining >= _minimumPacketLength)
                     {
-                        reader.AdvanceTo(result.Buffer.GetPosition(parseResult.Length));
-                        minimumReadSize = _minimumPacketLength;
+                        var parseResult = handlerAdapter.OnPacket(session, ref bufferReader);
+                        if (!parseResult.IsCompleted)
+                        {
+                            minimumReadSize = parseResult.Length;
+                            break;
+                        }
+                        len += parseResult.Length;
+                    }
+                    if (len > 0)
+                    {
+                        reader.AdvanceTo(result.Buffer.GetPosition(len));
                     }
                     else
                     {
-                        minimumReadSize = parseResult.Length;
-                        reader.AdvanceTo(result.Buffer.Start);
                         logger.LogDebug("Receive Partial Packet: {0}/{1}", result.Buffer.Length, minimumReadSize);
+                        reader.AdvanceTo(result.Buffer.Start);
                     }
                 }
                 if (cancellationToken.IsCancellationRequested)
@@ -144,27 +194,6 @@ namespace LightNet.Pipes
             set
             {
                 _minimumPacketLength = value;
-            }
-        }
-
-        public int ReceiveBufferSize
-        {
-            get
-            {
-                return 0;
-            }
-            set
-            {
-            }
-        }
-        public int SendBufferSize
-        {
-            get
-            {
-                return 0;
-            }
-            set
-            {
             }
         }
     }

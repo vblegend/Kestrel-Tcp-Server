@@ -9,6 +9,7 @@ using System.IO.Pipes;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Buffers;
 
 
 namespace LightNet.Pipes
@@ -23,12 +24,13 @@ namespace LightNet.Pipes
         private readonly ILogger<TCPServer> logger = LoggerProvider.CreateLogger<TCPServer>();
         private readonly InternalSessionPool<InternalPipeSession> sessionPool;
 
-        private Int32 readBufferSize = 8192;
-        private Int32 writeBufferSize = 8192;
+        private Int32 receiveBufferSize = 8192;
+        private Int32 sendBufferSize = 8192;
         private CancellationTokenSource listenCancelTokenSource = null;
         private TaskCompletionSource stopCompleted = null;
 
         public ServerHandlerAdapter handlerAdapter;
+
 
 
 
@@ -99,8 +101,8 @@ namespace LightNet.Pipes
                 NamedPipeServerStream.MaxAllowedServerInstances,                      // 最大实例数
                 PipeTransmissionMode.Byte, // 传输模式
                 System.IO.Pipes.PipeOptions.Asynchronous,  // 管道选项
-                writeBufferSize,               // 输入缓冲区大小
-                readBufferSize                // 输出缓冲区大小
+                sendBufferSize,               // 输入缓冲区大小
+                receiveBufferSize                // 输出缓冲区大小
             );
         }
 
@@ -158,11 +160,11 @@ namespace LightNet.Pipes
                 Interlocked.Increment(ref _currentConnectionCounter);
                 // 连接数限制
                 if (_currentConnectionCounter > _maximumConnectionLimit) return;
-                var reader = PipeReader.Create(serverStream);
+                var reader = PipeReader.Create(serverStream, new StreamPipeReaderOptions(bufferSize: receiveBufferSize));
                 session = sessionPool.Get();
                 session.ConnectionId = Interlocked.Increment(ref ConnectionIdSource);
                 session.ConnectTime = TimeService.Default.Now();
-                session.Init(serverStream);
+                session.Init(serverStream, sendBufferSize);
                 var allowConnect = await handlerAdapter.OnConnected(session);
                 if (allowConnect)
                 {
@@ -170,18 +172,32 @@ namespace LightNet.Pipes
                     {
                         var result = await reader.ReadAtLeastAsync((int)minimumReadSize, cancellationToken);
                         if (result.IsCompleted) break;
-                        var parseResult = await handlerAdapter.OnPacket(session, result.Buffer);
-                        if (parseResult.IsCompleted)
-                        {
-                            reader.AdvanceTo(result.Buffer.GetPosition(parseResult.Length));
-                            minimumReadSize = _minimumPacketLength;
-                        }
-                        else
-                        {
-                            minimumReadSize = parseResult.Length;
-                            reader.AdvanceTo(result.Buffer.Start);
-                            logger.LogDebug("Receive Partial Packet: {0}/{1}", result.Buffer.Length, minimumReadSize);
-                        }
+                        var RESULT = handlerAdapter.OnPacket(session, result.Buffer);
+                        reader.AdvanceTo(result.Buffer.GetPosition(RESULT.Length));
+                        minimumReadSize = RESULT.NextPacketSize;
+
+                        //minimumReadSize = _minimumPacketLength;
+                        //var bufferReader = new SequenceReader<byte>(result.Buffer);
+                        //Int64 len = 0;
+                        //while (bufferReader.Remaining >= _minimumPacketLength)
+                        //{
+                        //    var parseResult = await handlerAdapter.OnPacket(session, ref bufferReader);
+                        //    if (!parseResult.IsCompleted)
+                        //    {
+                        //        minimumReadSize = parseResult.Length;
+                        //        break;
+                        //    }
+                        //    len += parseResult.Length;
+                        //}
+                        //if (len > 0)
+                        //{
+                        //    reader.AdvanceTo(result.Buffer.GetPosition(len));
+                        //}
+                        //else
+                        //{
+                        //    logger.LogDebug("Receive Partial Packet: {0}/{1}", result.Buffer.Length, minimumReadSize);
+                        //    reader.AdvanceTo(result.Buffer.Start);
+                        //}
                     }
                     if (cancellationToken.IsCancellationRequested)
                     {
@@ -284,24 +300,24 @@ namespace LightNet.Pipes
         {
             get
             {
-                return readBufferSize;
+                return receiveBufferSize;
             }
             set
             {
                 if (this.PipeName != null) throw new Exception("不支持运行时更改");
-                readBufferSize = value;
+                receiveBufferSize = value;
             }
         }
         public int SendBufferSize
         {
             get
             {
-                return writeBufferSize;
+                return sendBufferSize;
             }
             set
             {
                 if (this.PipeName != null) throw new Exception("不支持运行时更改");
-                writeBufferSize = value;
+                sendBufferSize = value;
             }
         }
     }

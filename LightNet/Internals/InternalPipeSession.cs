@@ -3,6 +3,7 @@ using System.Buffers;
 using System.IO.Pipelines;
 using System.IO.Pipes;
 using System.Net;
+using System.Net.Sockets;
 using System.Threading.Tasks;
 
 namespace LightNet.Internals
@@ -30,10 +31,10 @@ namespace LightNet.Internals
         }
 
 
-        internal void Init(PipeStream stream)
+        internal void Init(PipeStream stream, Int32 writeBufferSize)
         {
             this.stream = stream;
-            writer = PipeWriter.Create(stream);
+            writer = PipeWriter.Create(stream, new StreamPipeWriterOptions(minimumBufferSize: writeBufferSize));
         }
 
 

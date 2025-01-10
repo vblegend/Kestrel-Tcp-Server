@@ -62,12 +62,18 @@ namespace LightNet
 
 
 
-        public override async ValueTask<UnPacketResult> OnPacket(IConnectionSession session, ReadOnlySequence<byte> sequence)
+
+
+
+
+        public override UnPacketResult OnPacket(IConnectionSession session,ref SequenceReader<byte> reader)
         {
-            var result = messageParser.TryParse(new SequenceReader<byte>(sequence), messageResolver, out AbstractNetMessage message, out var length);
+            var result = messageParser.TryParse(ref reader, messageResolver, out AbstractNetMessage message, out var length);
             if (message != null)
             {
-                await OnReceive(session, message);
+                message.Session = session;
+                // 待优化
+                Task.Run(() => OnReceive(session, message));
             }
             if (result == ParseResult.Illicit) throw new Exception("Illegal packet detected. Connection to be closed.");
             return new UnPacketResult(result == ParseResult.Ok, length);

@@ -30,10 +30,10 @@ namespace LightNet.Internals
         }
 
 
-        internal void Init(NetworkStream networkStream)
+        internal void Init(NetworkStream networkStream, Int32 writeBufferSize)
         {
             _socket = networkStream.Socket;
-            writer = PipeWriter.Create(networkStream);
+            writer = PipeWriter.Create(networkStream, new StreamPipeWriterOptions(minimumBufferSize: writeBufferSize));
             RemoteEndPoint = _socket.RemoteEndPoint;
         }
 

@@ -8,6 +8,8 @@ using System.Net;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Buffers;
+using System.Diagnostics;
 
 
 
@@ -24,6 +26,42 @@ namespace LightNet.Network
         private readonly InternalSessionPool<InternalNetSession> sessionPool;
         private CancelCompletionSignal cancelCompletionSignal = new CancelCompletionSignal(true);
         private ServerHandlerAdapter handlerAdapter = null;
+
+        private Int32 receiveBufferSize = 8192;
+        private Int32 sendBufferSize = 8192;
+
+
+
+
+        public override int ReceiveBufferSize
+        {
+            get
+            {
+                return receiveBufferSize;
+            }
+            set
+            {
+                receiveBufferSize = value;
+                base.ReceiveBufferSize = value;
+            }
+        }
+
+        public override int SendBufferSize
+        {
+            get
+            {
+                return sendBufferSize;
+            }
+            set
+            {
+                sendBufferSize = value;
+                base.SendBufferSize = value;
+            }
+        }
+
+
+
+
         public TCPServer() : base()
         {
             this.sessionPool = new InternalSessionPool<InternalNetSession>(Environment.ProcessorCount * 2);
@@ -130,11 +168,11 @@ namespace LightNet.Network
                 // 连接数限制
                 if (_currentConnectionCounter > _maximumConnectionLimit) return;
                 networkStream = new NetworkStream(socket, ownsSocket: true);
-                var reader = PipeReader.Create(networkStream);
+                var reader = PipeReader.Create(networkStream, new StreamPipeReaderOptions(bufferSize: receiveBufferSize));
                 session = sessionPool.Get();
                 session.ConnectionId = Interlocked.Increment(ref ConnectionIdSource);
                 session.ConnectTime = TimeService.Default.Now();
-                session.Init(networkStream);
+                session.Init(networkStream, sendBufferSize);
                 var allowConnect = await handlerAdapter.OnConnected(session);
                 if (allowConnect)
                 {
@@ -142,18 +180,38 @@ namespace LightNet.Network
                     {
                         var result = await reader.ReadAtLeastAsync((int)minimumReadSize, cancellationToken);
                         if (result.IsCompleted) break;
-                        var parseResult = await handlerAdapter.OnPacket(session, result.Buffer);
-                        if (parseResult.IsCompleted)
-                        {
-                            reader.AdvanceTo(result.Buffer.GetPosition(parseResult.Length));
-                            minimumReadSize = _minimumPacketLength;
-                        }
-                        else
-                        {
-                            minimumReadSize = parseResult.Length;
-                            reader.AdvanceTo(result.Buffer.Start);
-                            logger.LogDebug("Receive Partial Packet: {0}/{1}", result.Buffer.Length, minimumReadSize);
-                        }
+                        //minimumReadSize = _minimumPacketLength;
+
+
+                        var RESULT = handlerAdapter.OnPacket(session, result.Buffer);
+
+                        
+                        reader.AdvanceTo(result.Buffer.GetPosition(RESULT.Length));
+                        minimumReadSize = RESULT.NextPacketSize;
+
+
+
+                        //var bufferReader = new SequenceReader<byte>(result.Buffer);
+                        //Int64 len = 0;
+                        //while (bufferReader.Remaining >= _minimumPacketLength)
+                        //{
+                        //    var parseResult = handlerAdapter.OnPacket(session, ref bufferReader);
+                        //    if (!parseResult.IsCompleted)
+                        //    {
+                        //        minimumReadSize = parseResult.Length;
+                        //        break;
+                        //    }
+                        //    len += parseResult.Length;
+                        //}
+                        //if (len > 0)
+                        //{
+                        //    reader.AdvanceTo(result.Buffer.GetPosition(len));
+                        //}
+                        //else
+                        //{
+                        //    logger.LogDebug("Receive Partial Packet: {0}/{1}", result.Buffer.Length, minimumReadSize);
+                        //    reader.AdvanceTo(result.Buffer.Start);
+                        //}
                     }
                     if (cancellationToken.IsCancellationRequested)
                     {

@@ -65,9 +65,10 @@ namespace Examples.Services
             await ValueTask.CompletedTask;
         }
 
-        public override async ValueTask OnReceive(AbstractNetMessage message)
+        public override void OnReceive(AbstractNetMessage message)
         {
-            await channelWriter.WriteAsync(message);
+            channelWriter.WriteAsync(message);//.AsTask().Wait();
+            //channelWriter.TryWrite(message);
         }
     }
 }

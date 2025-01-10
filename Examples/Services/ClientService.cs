@@ -13,6 +13,10 @@ namespace Examples.Services
         private readonly ApplicationOptions applicationOptions;
         private CancellationTokenSource? sendToken;
         private IConnectionSession? session;
+
+
+
+
         public ClientService(ILogger<ClientService> _logger, ApplicationOptions applicationOptions, MessageResolvers resolvers) 
             : base(resolvers.CSResolver)
         {
@@ -32,7 +36,7 @@ namespace Examples.Services
                     Stopwatch stopwatch = Stopwatch.StartNew();
                     try
                     {
-                        for (int i = 0; i < 1000; i++)
+                        for (int i = 0; i < 100000; i++)
                         {
                             var message = MessageFactory.Create<ClientMessage>();
                             message.X = 19201080;

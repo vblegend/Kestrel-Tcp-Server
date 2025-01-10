@@ -7,11 +7,6 @@ namespace LightNet.Message
     internal interface IMessagePool
     {
         /// <summary>
-        /// 获取一个可复用的消息对象
-        /// </summary>
-        /// <returns></returns>
-        public AbstractNetMessage Get();
-        /// <summary>
         /// 将消息对象归还到池子里 (应使用 messaeg.Return();)
         /// </summary>
         /// <param name="message"></param>
@@ -96,12 +91,6 @@ namespace LightNet.Message
                 // no room, clean up the count and drop the object on the floor
                 Interlocked.Decrement(ref _numItems);
             }
-        }
-
-
-        AbstractNetMessage IMessagePool.Get()
-        {
-            return Get();
         }
 
         void IMessagePool.Return(AbstractNetMessage message)

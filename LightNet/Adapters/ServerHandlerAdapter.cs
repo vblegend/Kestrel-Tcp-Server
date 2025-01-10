@@ -30,25 +30,27 @@ namespace LightNet.Adapters
     /// </summary>
     public readonly struct UnPacketResult
     {
-        public UnPacketResult(bool complete, long length)
+        public UnPacketResult(bool complete, long length,long nextPacketSize = 0)
         {
             IsCompleted = complete;
             Length = length;
+            NextPacketSize = nextPacketSize;
         }
 
         /// <summary>
-        /// 是否为完整的封包，
-        /// 返回true时表示数据已被处理，Length=当前处理报文长度
-        /// 返回false时表示报文不完整，Length=下次触发OnPacket时最小报文长度
+        /// 待移除
         /// </summary>
         public readonly bool IsCompleted;
 
         /// <summary>
-        /// 封包长度，
-        /// 当IsCompleted=true 时 Length为当前已处理报文长度
-        /// 当IsCompleted=false时 Length为下次读取封包最小长度
+        /// 成功处理的报文长度
         /// </summary>
         public readonly long Length;
+
+        /// <summary>
+        /// 下次需要的报文长度
+        /// </summary>
+        public readonly long NextPacketSize;
 
     }
 
@@ -94,7 +96,12 @@ namespace LightNet.Adapters
         /// <param name="session"></param>
         /// <param name="sequence"></param>
         /// <returns></returns>
-        public abstract ValueTask<UnPacketResult> OnPacket(IConnectionSession session, ReadOnlySequence<byte> sequence);
+        //public abstract UnPacketResult OnPacket(IConnectionSession session, ref SequenceReader<byte> reader);
+
+
+
+        public abstract UnPacketResult OnPacket(IConnectionSession session, ReadOnlySequence<byte> buffer);
+
 
     }
 }

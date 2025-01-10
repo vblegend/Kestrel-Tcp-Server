@@ -8,7 +8,9 @@ using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 using LightNet.Internals;
-using static System.Collections.Specialized.BitVector32;
+using Microsoft.AspNetCore.WebUtilities;
+
+
 
 namespace LightNet.Network
 {
@@ -21,6 +23,42 @@ namespace LightNet.Network
         private ClientHandlerAdapter handlerAdapter = null;
         private TaskCompletionSource stopCompleted = null;
         private readonly InternalNetSession session = new InternalNetSession();
+
+
+        private Int32 receiveBufferSize = 8192;
+
+        private Int32 sendBufferSize = 8192;
+
+
+
+
+        public override int ReceiveBufferSize
+        {
+            get
+            {
+                return receiveBufferSize;
+            }
+            set
+            {
+                receiveBufferSize = value;
+                base.ReceiveBufferSize = value;
+            }
+        }
+
+        public override int SendBufferSize
+        {
+            get
+            {
+                return sendBufferSize;
+            }
+            set
+            {
+                sendBufferSize = value;
+                base.SendBufferSize = value;
+            }
+        }
+
+
         public void SetAdapter(ClientHandlerAdapter handlerAdapter)
         {
             this.handlerAdapter = handlerAdapter;
@@ -46,6 +84,15 @@ namespace LightNet.Network
 
         public async ValueTask ConnectAsync(Uri remoteUri, CancellationToken cancellationToken)
         {
+            var querys = QueryHelpers.ParseQuery(remoteUri.Query);
+            if (querys.TryGetValue("readBuffer", out var readBufferSize))
+            {
+                this.ReceiveBufferSize = Int32.Parse(readBufferSize);
+            }
+            if (querys.TryGetValue("writeBuffer", out var writeBufferSize))
+            {
+                this.SendBufferSize = Int32.Parse(writeBufferSize);
+            }
             await ConnectAsync(new IPEndPoint(IPAddress.Parse(remoteUri.Host), remoteUri.Port), cancellationToken);
         }
 
@@ -73,26 +120,36 @@ namespace LightNet.Network
             try
             {
                 networkStream = new NetworkStream(socket, true);
-                session.Init(networkStream);
+                session.Init(networkStream, sendBufferSize);
                 session.ConnectionId = 0;
                 session.ConnectTime = TimeService.Default.Now();
-                var reader = PipeReader.Create(networkStream);
+                var reader = PipeReader.Create(networkStream, new StreamPipeReaderOptions(bufferSize: receiveBufferSize));
                 await handlerAdapter.OnConnection(session);
                 while (!cancellationToken.IsCancellationRequested && socket.Connected)
                 {
                     var result = await reader.ReadAtLeastAsync((int)minimumReadSize, cancellationToken);
                     if (result.IsCompleted) break;
-                    var parseResult = await handlerAdapter.OnPacket(session, result.Buffer);
-                    if (parseResult.IsCompleted)
+                    minimumReadSize = _minimumPacketLength;
+                    var bufferReader = new SequenceReader<byte>(result.Buffer);
+                    Int64 len = 0;
+                    while (bufferReader.Remaining >= _minimumPacketLength)
                     {
-                        reader.AdvanceTo(result.Buffer.GetPosition(parseResult.Length));
-                        minimumReadSize = _minimumPacketLength;
+                        var parseResult = handlerAdapter.OnPacket(session, ref bufferReader);
+                        if (!parseResult.IsCompleted)
+                        {
+                            minimumReadSize = parseResult.Length;
+                            break;
+                        }
+                        len += parseResult.Length;
+                    }
+                    if (len > 0)
+                    {
+                        reader.AdvanceTo(result.Buffer.GetPosition(len));
                     }
                     else
                     {
-                        minimumReadSize = parseResult.Length;
-                        reader.AdvanceTo(result.Buffer.Start);
                         logger.LogDebug("Receive Partial Packet: {0}/{1}", result.Buffer.Length, minimumReadSize);
+                        reader.AdvanceTo(result.Buffer.Start);
                     }
                 }
                 if (cancellationToken.IsCancellationRequested)
@@ -105,7 +162,8 @@ namespace LightNet.Network
                 }
             }
 
-            catch (OperationCanceledException) {
+            catch (OperationCanceledException)
+            {
                 session.Close(SessionShutdownCause.SHUTTING_DOWN);
             }
             catch (Exception ex)
