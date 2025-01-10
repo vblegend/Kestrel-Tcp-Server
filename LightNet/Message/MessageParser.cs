@@ -10,11 +10,6 @@ namespace LightNet.Message
 
     public class MessageParser
     {
-        private readonly MessageResolver resolver;
-        public MessageParser(MessageResolver resolver = null)
-        {
-            this.resolver = resolver ?? MessageResolver.Default;
-        }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static Byte GetKindLen(MessageFlags flags)
@@ -25,7 +20,7 @@ namespace LightNet.Message
         // 474D 00 1300 02 00000000 08 FFFFFFFFFFFFFF7F
 
 
-        public ParseResult TryParse(SequenceReader<byte> reader, out AbstractNetMessage message, out UInt16 needLength)
+        public ParseResult TryParse(SequenceReader<byte> reader, MessageResolver messageResolver, out AbstractNetMessage message, out UInt16 needLength)
         {
             message = default;
             needLength = 0;
@@ -37,13 +32,13 @@ namespace LightNet.Message
             var kl = GetKindLen(flags);
             reader.TryRead(kl, out Int16 kind);
             reader.TryRead(out UInt64 time);
-            message = resolver.Resolver(kind);
+            message = messageResolver.Resolver(kind);
             message.Read(new SequenceReader<byte>(reader.UnreadSequence));
             return ParseResult.Ok;
         }
 
 
-        public ParseResult Parse(SequenceReader<byte> reader, out AbstractNetMessage message)
+        public ParseResult Parse(SequenceReader<byte> reader, MessageResolver messageResolver, out AbstractNetMessage message)
         {
             message = default;
             reader.TryRead<ushort>(out var header);
@@ -54,7 +49,7 @@ namespace LightNet.Message
             var kl = GetKindLen(flags);
             reader.TryRead(kl, out Int16 kind);
             reader.TryRead(out UInt64 time);
-            message = resolver.Resolver(kind);
+            message = messageResolver.Resolver(kind);
             message.Read(new SequenceReader<byte>(reader.UnreadSequence));
             return ParseResult.Ok;
         }

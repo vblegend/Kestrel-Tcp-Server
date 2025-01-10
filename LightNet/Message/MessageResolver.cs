@@ -1,58 +1,55 @@
-﻿using System;
+﻿using LightNet.Internals;
+using Microsoft.Extensions.Logging;
+using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
+
 
 
 namespace LightNet.Message
 {
     public class MessageResolver
     {
-        private readonly static Dictionary<Int16, IntPtr> Keys = new();
+        private readonly ILogger<MessageResolver> logger = LoggerProvider.CreateLogger<MessageResolver>();
+        private readonly Dictionary<Int16, IntPtr> Keys = new();
 
-        /// <summary>
-        /// 默认的解析器
-        /// </summary>
-        public static MessageResolver Default = new MessageResolver();
-
-        static MessageResolver()
+        private MessageResolver(Type baseMessageType)
         {
-            foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies()) ResolveAssembly(assembly);
-            AppDomain.CurrentDomain.AssemblyLoad += AppDomain_AssemblyLoad;
-        }
-
-        private static void AppDomain_AssemblyLoad(object sender, AssemblyLoadEventArgs args)
-        {
-            ResolveAssembly(args.LoadedAssembly);
-        }
-
-        private unsafe static void ResolveAssembly(Assembly assembly)
-        {
-            var processorTypes = assembly.GetTypes().Where(type => type.IsClass && !type.IsAbstract);
-            foreach (var type in processorTypes)
+            var list = MessageLoader.InitializedTypes.ToArray();
+            foreach (var item in list.Where(e => e.Type.IsSubclassOf(baseMessageType)))
             {
-                if (!type.IsSubclassOf(typeof(AbstractNetMessage))) continue;
-
-                // 获取所有的 Attribute
-                var attributes = type.GetCustomAttributes(inherit: true);
-                // 查找实现 IMessageAttribute 的属性
-                var messageAttribute = attributes.OfType<IMessageAttribute>().FirstOrDefault();
-                if (messageAttribute != null)
+                if (Keys.TryGetValue(item.Kind, out var pointer))
                 {
-                    var getter = messageAttribute.GetPointer();
-                    var msg = getter();
-                    Keys.Add(msg.Kind, (IntPtr)getter);
-                    msg.Return();
+                    if (pointer == item.FuncPointer) continue;
+                    logger.LogWarning("MessageResolver<{0}> kind:{1} 已存在", baseMessageType.Name, item.Kind);
+                    continue;
                 }
+                Keys.Add(item.Kind, item.FuncPointer);
             }
         }
 
+        private static Dictionary<Type, MessageResolver> typeCache = new Dictionary<Type, MessageResolver>();
 
-
-
-        public unsafe AbstractNetMessage Resolver(Int16 action)
+        /// <summary>
+        /// 创建指定类型的
+        /// </summary>
+        /// <typeparam name="TMessage"></typeparam>
+        /// <returns></returns>
+        public static MessageResolver Create<TMessage>()
         {
-            if (Keys.TryGetValue(action, out var p))
+            var type = typeof(TMessage);
+            if (typeCache.TryGetValue(typeof(TMessage), out var resolver))
+            {
+                return resolver;
+            }
+            resolver = new MessageResolver(type);
+            typeCache.Add(type, resolver);
+            return resolver;
+        }
+
+        public unsafe AbstractNetMessage Resolver(Int16 kind)
+        {
+            if (Keys.TryGetValue(kind, out var p))
             {
                 delegate*<AbstractNetMessage> getter = (delegate*<AbstractNetMessage>)p;
                 return getter();

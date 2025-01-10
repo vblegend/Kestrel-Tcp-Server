@@ -1,42 +1,42 @@
 ﻿using LightNet.Message;
 
-namespace Examples
+namespace Examples.Client
 {
 
 
     /// <summary>
     /// 消息种类定义
     /// </summary>
-    public static class MessageKind
+    public static class ClientMessageKind
     {
         /// <summary>
         /// 无效消息
         /// </summary>
         [Kind]
-        public const Int16 None = 0;
-        
+        public const short None = 0;
+
 
         /// <summary>
         /// 网关消息
         /// </summary>
         [Kind]
-        public const Int16 Gateway = 1;
+        public const short Gateway = 100;
 
 
         /// <summary>
         /// 测试消息
         /// </summary>
         [Kind]
-        public const Int16 Example = 2;
+        public const short Example = 200;
 
 
 
 
 
         [Kind]
-        public const Int16 MinKind = -32767;
+        public const short MinKind = -32767;
 
         [Kind]
-        public const Int16 MaxKind = 32767;
+        public const short MaxKind = 32767;
     }
 }

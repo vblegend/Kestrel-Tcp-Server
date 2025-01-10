@@ -53,14 +53,13 @@ namespace LightNet.Network
         public async ValueTask ConnectAsync(EndPoint remoteEP, CancellationToken cancellationToken)
         {
             if (cancelTokenSource != null) throw new Exception("不能重复连接");
-            cancelTokenSource = new CancellationTokenSource();
+            cancelTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             await socket.ConnectAsync(remoteEP, cancelTokenSource.Token);
             _ = OnConnectedAsync(socket, cancelTokenSource.Token);
         }
 
         public async Task CloseAsync()
         {
-            session.Close(SessionShutdownCause.SHUTTING_DOWN);
             cancelTokenSource?.Cancel();
             cancelTokenSource = null;
             if (stopCompleted != null) await stopCompleted.Task;
@@ -71,7 +70,6 @@ namespace LightNet.Network
         {
             stopCompleted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             long minimumReadSize = _minimumPacketLength;
-            
             try
             {
                 networkStream = new NetworkStream(socket, true);
@@ -83,11 +81,7 @@ namespace LightNet.Network
                 while (!cancellationToken.IsCancellationRequested && socket.Connected)
                 {
                     var result = await reader.ReadAtLeastAsync((int)minimumReadSize, cancellationToken);
-                    if (result.IsCompleted)
-                    {
-                        session.Close(SessionShutdownCause.UNEXPECTED_DISCONNECTED);
-                        break;
-                    }
+                    if (result.IsCompleted) break;
                     var parseResult = await handlerAdapter.OnPacket(session, result.Buffer);
                     if (parseResult.IsCompleted)
                     {
@@ -101,17 +95,29 @@ namespace LightNet.Network
                         logger.LogDebug("Receive Partial Packet: {0}/{1}", result.Buffer.Length, minimumReadSize);
                     }
                 }
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    session.Close(SessionShutdownCause.SHUTTING_DOWN);
+                }
+                else
+                {
+                    session.Close(SessionShutdownCause.UNEXPECTED_DISCONNECTED);
+                }
             }
-            catch (OperationCanceledException) { }
+
+            catch (OperationCanceledException) {
+                session.Close(SessionShutdownCause.SHUTTING_DOWN);
+            }
             catch (Exception ex)
             {
                 await handlerAdapter.OnError(session, ex);
+                session.Close(SessionShutdownCause.ERROR);
             }
             finally
             {
+                await handlerAdapter.OnClose(session);
                 if (networkStream != null) await networkStream.DisposeAsync();
                 networkStream = null;
-                await handlerAdapter.OnClose(session);
                 session.Clean();
                 stopCompleted?.TrySetResult();
             }

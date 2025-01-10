@@ -1,4 +1,5 @@
-﻿using LightNet.Message;
+﻿using Examples.Client;
+using LightNet.Message;
 
 
 namespace Examples
@@ -11,9 +12,9 @@ namespace Examples
         }
 
 
-        public static ExampleMessage ExampleMessage(Int64 value)
+        public static ClientMessage ExampleMessage(Int64 value)
         {
-            var msg = MFactory<ExampleMessage>.GetMessage();
+            var msg = MFactory<ClientMessage>.GetMessage();
             msg.X = value;
             return msg;
         }

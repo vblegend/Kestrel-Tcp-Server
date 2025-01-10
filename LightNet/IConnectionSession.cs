@@ -11,7 +11,7 @@ namespace LightNet
     public enum SessionShutdownCause
     {
         /// <summary>
-        /// 没有任何原因的关闭
+        /// 未设置关闭原因，或会话未关闭
         /// </summary>
         NONE = 0,
 
@@ -34,6 +34,18 @@ namespace LightNet
         /// 非法数据
         /// </summary>
         ILLEGAL_DATA = 4,
+
+
+        /// <summary>
+        /// 错误
+        /// </summary>
+        ERROR = 5,
+
+
+        /// <summary>
+        /// 连接被拒绝
+        /// </summary>
+        CONNECTION_DENIAL =6
 
     }
 

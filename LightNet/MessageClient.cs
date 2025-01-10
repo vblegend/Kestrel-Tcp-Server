@@ -11,9 +11,17 @@ namespace LightNet
 {
     public abstract class MessageClient : ClientHandlerAdapter
     {
-
         private IPacketClient packetClient;
-        private readonly MessageParser messageParser = new MessageParser();
+
+        public readonly MessageParser messageParser = new MessageParser();
+
+        public readonly MessageResolver messageResolver;
+
+        protected MessageClient(MessageResolver resolver)
+        {
+            messageResolver = resolver;
+        }
+
 
 
         /// <summary>
@@ -56,7 +64,7 @@ namespace LightNet
 
         public override async ValueTask<UnPacketResult> OnPacket(IConnectionSession session, ReadOnlySequence<byte> sequence)
         {
-            var result = messageParser.TryParse(new SequenceReader<byte>(sequence), out AbstractNetMessage message, out var length);
+            var result = messageParser.TryParse(new SequenceReader<byte>(sequence), messageResolver, out AbstractNetMessage message, out var length);
             if (message != null)
             {
                 await OnReceive(session, message);

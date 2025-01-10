@@ -1,4 +1,5 @@
-﻿using LightNet;
+﻿using Examples.Client;
+using LightNet;
 using LightNet.Message;
 using System.Buffers;
 using System.Diagnostics;
@@ -12,7 +13,8 @@ namespace Examples.Services
         private readonly ApplicationOptions applicationOptions;
         private CancellationTokenSource? sendToken;
         private IConnectionSession? session;
-        public ClientService(ILogger<ClientService> _logger, ApplicationOptions applicationOptions)
+        public ClientService(ILogger<ClientService> _logger, ApplicationOptions applicationOptions, MessageResolvers resolvers) 
+            : base(resolvers.CSResolver)
         {
             logger = _logger;
             sendToken = null;
@@ -32,7 +34,7 @@ namespace Examples.Services
                     {
                         for (int i = 0; i < 1000; i++)
                         {
-                            var message = MessageFactory.Create<ExampleMessage>();
+                            var message = MessageFactory.Create<ClientMessage>();
                             message.X = 19201080;
                             session?.Write(message);
                             message.Return();
@@ -59,7 +61,10 @@ namespace Examples.Services
         public async Task StartAsync(CancellationToken cancellationToken)
         {
             await ConnectAsync(applicationOptions.ClientUri, cancellationToken);
-            //await base.CloseAsync();
+            await base.CloseAsync();
+
+            await ConnectAsync(applicationOptions.ClientUri, cancellationToken);
+
             sendToken = StartSendMessage();
             await Task.CompletedTask;
         }

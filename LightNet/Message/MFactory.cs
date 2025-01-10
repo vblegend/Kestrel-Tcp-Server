@@ -3,6 +3,10 @@ using System.Runtime.CompilerServices;
 
 namespace LightNet.Message
 {
+
+    internal delegate void MFactoryInitialMethod(Int16 kind, Int32 poolCapacity);
+
+
     /// <summary>
     /// 泛型消息工厂,提供基于池的消息创建和复用
     /// </summary>
@@ -41,14 +45,19 @@ namespace LightNet.Message
         }
 
 
+        private static Boolean isInited = false;
+
+
         internal unsafe static void InitialFactory(Int16 kind, Int32 poolCapacity)
         {
+            if (isInited) return;
             fixed (Int16* ptr = &Kind) *ptr = kind;
             if (poolCapacity >= 0)
             {
                 if (poolCapacity == 0) poolCapacity = Environment.ProcessorCount * 2;
                 _shared = new MessagePool<TMessage>(CreateMessageRawInternal, poolCapacity);
             }
+            isInited = true;
         }
     }
 }

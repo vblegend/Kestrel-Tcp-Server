@@ -126,6 +126,10 @@ namespace LightNet.Pipes
             {
                 logger.LogDebug(ex, $"Listener Error {ex.GetType().FullName}.");
             }
+            finally
+            {
+                listenCancelTokenSource?.Cancel();
+            }
 
         }
 
@@ -152,10 +156,8 @@ namespace LightNet.Pipes
             try
             {
                 Interlocked.Increment(ref _currentConnectionCounter);
-                if (_currentConnectionCounter > _maximumConnectionLimit)
-                {
-                    throw new Exception("超出连接数");
-                }
+                // 连接数限制
+                if (_currentConnectionCounter > _maximumConnectionLimit) return;
                 var reader = PipeReader.Create(serverStream);
                 session = sessionPool.Get();
                 session.ConnectionId = Interlocked.Increment(ref ConnectionIdSource);
@@ -181,10 +183,18 @@ namespace LightNet.Pipes
                             logger.LogDebug("Receive Partial Packet: {0}/{1}", result.Buffer.Length, minimumReadSize);
                         }
                     }
+                    if (cancellationToken.IsCancellationRequested)
+                    {
+                        session.Close(SessionShutdownCause.SHUTTING_DOWN);
+                    }
+                    else
+                    {
+                        session.Close(SessionShutdownCause.UNEXPECTED_DISCONNECTED);
+                    }
                 }
                 else
                 {
-                    session.Close(SessionShutdownCause.NONE);
+                    session.Close(SessionShutdownCause.CONNECTION_DENIAL);
                 }
             }
             catch (OperationCanceledException)
@@ -202,12 +212,12 @@ namespace LightNet.Pipes
                     }
                     else
                     {
-                        if (session != null) await handlerAdapter.OnError(session, ex);
+                        await handlerAdapter.OnError(session, ex);
                     }
                 }
                 else
                 {
-                    if (session != null) await handlerAdapter.OnError(session, ex);
+                    await handlerAdapter.OnError(session, ex);
                 }
             }
             finally

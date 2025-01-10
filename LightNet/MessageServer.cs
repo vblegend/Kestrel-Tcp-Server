@@ -15,7 +15,15 @@ namespace LightNet
 
         private IPacketServer _packetServer;
 
-        private readonly MessageParser messageParser = new MessageParser(MessageResolver.Default);
+        public readonly MessageParser messageParser = new MessageParser();
+        public readonly MessageResolver messageResolver;
+
+        protected MessageServer(MessageResolver resolver)
+        {
+            messageResolver = resolver;
+        }
+
+
 
         /// <summary>
         /// 支持 tcp 和 pipe
@@ -55,13 +63,13 @@ namespace LightNet
 
         public override async ValueTask<UnPacketResult> OnPacket(IConnectionSession session, ReadOnlySequence<byte> sequence)
         {
-            var result = messageParser.TryParse(new SequenceReader<byte>(sequence), out AbstractNetMessage message, out var length);
+            var result = messageParser.TryParse(new SequenceReader<byte>(sequence), messageResolver, out AbstractNetMessage message, out var length);
             if (message != null)
             {
                 message.Session = session;
                 await OnReceive(message);
             }
-            if (result == ParseResult.Illicit) throw new Exception("Illegal packet detected. Connection to be closed.");
+            if (result == ParseResult.Illicit) throw new IllegalDataException("Illegal packet detected. Connection to be closed.");
             return new UnPacketResult(result == ParseResult.Ok, length);
         }
 

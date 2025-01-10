@@ -24,6 +24,8 @@ namespace LightNet.Internals
         public void Close(SessionShutdownCause cause)
         {
             stream?.Close();
+            writer = null;
+            stream = null;
             CloseCause = cause;
         }
 

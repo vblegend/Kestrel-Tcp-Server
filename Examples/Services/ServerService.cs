@@ -1,19 +1,22 @@
-﻿using LightNet;
+﻿using Examples.Client;
+using Examples.Gateway;
+using LightNet;
 using LightNet.Message;
 using System.Buffers;
+using System.Threading.Channels;
 
 namespace Examples.Services
 {
     public class ServerService : MessageServer, IHostedService
     {
         private readonly ILogger<ServerService> logger;
-        private readonly ProcessService messageProcessor;
         private readonly ApplicationOptions applicationOptions;
-
-        public ServerService(ILogger<ServerService> _logger, ProcessService _messageProcessor, ApplicationOptions applicationOptions)
+        private readonly ChannelWriter<AbstractNetMessage> channelWriter;
+        public ServerService(ILogger<ServerService> _logger, ClientProcessService _messageProcessor, ApplicationOptions applicationOptions, MessageResolvers resolvers)
+            : base(resolvers.CSResolver)
         {
+            channelWriter = _messageProcessor.GetWriter;
             this.applicationOptions = applicationOptions;
-            messageProcessor = _messageProcessor;
             logger = _logger;
         }
 
@@ -45,7 +48,7 @@ namespace Examples.Services
             //}
 
             logger.LogInformation("Client Connected: {0}, ClientIp: {1}", session.ConnectionId, session.RemoteEndPoint);
-            await session.WriteFlushAsync(MessageFactory.Create<ExampleMessage>());
+            await session.WriteFlushAsync(MessageFactory.Create<ClientMessage>());
             return true;
         }
 
@@ -64,7 +67,7 @@ namespace Examples.Services
 
         public override async ValueTask OnReceive(AbstractNetMessage message)
         {
-            await messageProcessor.WriteMessageAsync(message);
+            await channelWriter.WriteAsync(message);
         }
     }
 }

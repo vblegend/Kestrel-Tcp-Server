@@ -22,9 +22,7 @@ namespace LightNet.Network
         public Int32 _maximumConnectionLimit = 65535;
         private readonly ILogger<TCPServer> logger = LoggerProvider.CreateLogger<TCPServer>();
         private readonly InternalSessionPool<InternalNetSession> sessionPool;
-
-        private CancellationTokenSource listenCancelTokenSource = null;
-        private TaskCompletionSource stopCompleted = null;
+        private CancelCompletionSignal cancelCompletionSignal = new CancelCompletionSignal(true);
         private ServerHandlerAdapter handlerAdapter = null;
         public TCPServer() : base()
         {
@@ -74,16 +72,11 @@ namespace LightNet.Network
         /// <param name="cancellationToken"></param>
         public void Listen(IPAddress localAddress, Int32 localPort)
         {
-            if (listenCancelTokenSource != null)
-            {
-                throw new Exception("The listener cannot work twice.");
-            }
-            listenCancelTokenSource = new CancellationTokenSource();
-            stopCompleted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-
+            if (!cancelCompletionSignal.IsComplete) throw new Exception("服务已经启动");
+            cancelCompletionSignal.Reset();
             socket.Bind(new IPEndPoint(localAddress, localPort));
             socket.Listen(Int32.MaxValue);
-            socket.BeginAccept(new AsyncCallback(HandleAccepted), listenCancelTokenSource.Token);
+            socket.BeginAccept(new AsyncCallback(HandleAccepted), cancelCompletionSignal.Token);
             logger.LogDebug("Listen TCP Server: {0}:{1}", localAddress, localPort);
         }
 
@@ -91,7 +84,7 @@ namespace LightNet.Network
         {
             try
             {
-                var cancelToken = (CancellationToken)result.AsyncState!;
+                var cancelToken = (CancellationToken)result.AsyncState;
                 if (cancelToken.IsCancellationRequested) return;
                 Socket clientSocket = socket.EndAccept(result);
                 _ = OnConnectedAsync(clientSocket, cancelToken);
@@ -106,7 +99,10 @@ namespace LightNet.Network
             {
                 logger.LogDebug(ex, $"Listener Error {ex.GetType().FullName}.");
             }
+            finally
+            {
 
+            }
         }
 
 
@@ -114,16 +110,13 @@ namespace LightNet.Network
         /// 停止监听端口并断开所有客户端连接
         /// </summary>
         public async Task StopAsync()
-        {
-            listenCancelTokenSource?.Cancel();
+        {   // dispose socket
             base.Dispose();
+            // 标志为取消状态
+            cancelCompletionSignal.Cancel();
             var count = Interlocked.Read(ref _currentConnectionCounter);
-            if (stopCompleted != null && count > 0)
-            {
-                await stopCompleted.Task;
-                stopCompleted = null;
-            }
-            listenCancelTokenSource = null;
+            // 等待所有客户端释放
+            if (count > 0) await cancelCompletionSignal.CancelAsync();
         }
 
         private async Task OnConnectedAsync(Socket socket, CancellationToken cancellationToken)
@@ -134,10 +127,8 @@ namespace LightNet.Network
             try
             {
                 Interlocked.Increment(ref _currentConnectionCounter);
-                if (_currentConnectionCounter > _maximumConnectionLimit)
-                {
-                    throw new Exception("超出连接数");
-                }
+                // 连接数限制
+                if (_currentConnectionCounter > _maximumConnectionLimit) return;
                 networkStream = new NetworkStream(socket, ownsSocket: true);
                 var reader = PipeReader.Create(networkStream);
                 session = sessionPool.Get();
@@ -164,10 +155,18 @@ namespace LightNet.Network
                             logger.LogDebug("Receive Partial Packet: {0}/{1}", result.Buffer.Length, minimumReadSize);
                         }
                     }
+                    if (cancellationToken.IsCancellationRequested)
+                    {
+                        session.Close(SessionShutdownCause.SHUTTING_DOWN);
+                    }
+                    else
+                    {
+                        session.Close(SessionShutdownCause.UNEXPECTED_DISCONNECTED);
+                    }
                 }
                 else
                 {
-                    session.Close(SessionShutdownCause.NONE);
+                    session.Close(SessionShutdownCause.CONNECTION_DENIAL);
                 }
             }
             catch (OperationCanceledException)
@@ -181,16 +180,15 @@ namespace LightNet.Network
                     if (socketEx.SocketErrorCode == SocketError.ConnectionReset || socketEx.SocketErrorCode == SocketError.ConnectionAborted)
                     {
                         session?.Close(SessionShutdownCause.UNEXPECTED_DISCONNECTED);
-                        // 客户端主动关闭
                     }
                     else
                     {
-                        if (session != null) await handlerAdapter.OnError(session, ex);
+                        await handlerAdapter.OnError(session, ex);
                     }
                 }
                 else
                 {
-                    if (session != null) await handlerAdapter.OnError(session, ex);
+                    await handlerAdapter.OnError(session, ex);
                 }
             }
             finally
@@ -203,15 +201,14 @@ namespace LightNet.Network
                 }
                 if (session != null)
                 {
-
                     await handlerAdapter.OnClose(session);
                     sessionPool.Return(session);
                 }
                 if (Interlocked.Decrement(ref _currentConnectionCounter) == 0)
                 {
-                    if (this.listenCancelTokenSource != null && this.listenCancelTokenSource.IsCancellationRequested)
+                    if (cancelCompletionSignal.IsCancellationRequested)
                     {
-                        stopCompleted?.TrySetResult();
+                        cancelCompletionSignal.Complete();
                     }
                 }
 

@@ -1,7 +1,10 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using LightNet.Internals;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Linq.Expressions;
 using System.Reflection;
+using System.Threading;
+using System.Threading.Channels;
 using System.Threading.Tasks;
 
 namespace LightNet.Message
@@ -25,16 +28,87 @@ namespace LightNet.Message
         private readonly ILogger<AsyncMessageRouter> logger = LoggerProvider.CreateLogger<AsyncMessageRouter>();
         private readonly AsyncMessageHandlerDelegate<AbstractNetMessage>[] _messageHandlers = new AsyncMessageHandlerDelegate<AbstractNetMessage>[65535];
         private readonly IMessageProcessor _messageProcessor;
+        private readonly ChannelReader<AbstractNetMessage> channelReader;
 
+        private CancelCompletionSignal cancelCompletionSignal = new CancelCompletionSignal(true);
+
+
+        private readonly Boolean ExitWaitProcessComplete;
         /// <summary>
         /// 创建消息路由器并扫描processor内所有处理程序
         /// </summary>
         /// <param name="processor"></param>
-        public AsyncMessageRouter(IMessageProcessor processor)
+        public AsyncMessageRouter(ChannelReader<AbstractNetMessage> sourceChannel, IMessageProcessor processor, Boolean exitWaitProcessComplete)
         {
+            this.ExitWaitProcessComplete = exitWaitProcessComplete;
+            this.channelReader = sourceChannel;
             this._messageProcessor = processor;
             RegisterAllHandlers(processor);
         }
+
+        public Int32 Count
+        {
+            get
+            {
+                return channelReader.Count;
+            }
+        }
+
+
+        public async ValueTask StartAsync(CancellationToken cancellationToken)
+        {
+            await cancelCompletionSignal.CancelAsync();
+            cancelCompletionSignal.Reset();
+            ThreadPool.QueueUserWorkItem(ProcessMessage, null);
+        }
+
+        public async ValueTask StopAsync(CancellationToken cancellationToken)
+        {
+            await cancelCompletionSignal.CancelAsync();
+        }
+
+        private async void ProcessMessage(object? state)
+        {
+            var cancelToken = cancelCompletionSignal.Token;
+            AbstractNetMessage message;
+            while (true)
+            {
+                try
+                {
+                    if (cancelToken.IsCancellationRequested)
+                    {
+                        if (!ExitWaitProcessComplete || !channelReader.TryRead(out message))
+                        {
+                            break;
+                        }
+                    }
+                    else
+                    {
+                        message = await channelReader.ReadAsync(cancelToken);
+                    }
+                    await this.RouteAsync(message);
+                    message = null;
+                }
+                catch (Exception) { }
+                finally
+                {
+
+                }
+            }
+            cancelCompletionSignal.Complete();
+        }
+
+
+
+
+
+
+
+
+
+
+
+
 
         /// <summary>
         /// 注册消息处理器

@@ -5,7 +5,7 @@
         public ApplicationOptions()
         {
             // 模拟配置文件
-            Boolean useTcpProtocol = false;
+            Boolean useTcpProtocol = true;
             if (useTcpProtocol)
             {
                 ServerUri = new Uri("tcp://0.0.0.0:50000?readBuffer=1024000&writeBuffer=1024000");
