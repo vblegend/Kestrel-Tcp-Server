@@ -1,5 +1,4 @@
-﻿using Examples.Client;
-using LightNet.Message;
+﻿using LightNet.Message;
 using System.Buffers;
 
 namespace Examples.Gateway
@@ -8,7 +7,7 @@ namespace Examples.Gateway
 
 
 
-    [Message(GatewayMessageKind.Ping, 10000)]
+    [Message(GatewayMessageKind.Ping)]
     public class GatewayPingMessage : GatewayMessage
     {
         public Int64 X = 123;
@@ -24,7 +23,7 @@ namespace Examples.Gateway
 
 
 
-    [Message(GatewayMessageKind.Pong, 10000)]
+    [Message(GatewayMessageKind.Pong)]
     public class GatewayPongMessage : GatewayMessage
     {
         public Int64 X = 123;

@@ -1,5 +1,4 @@
 ﻿using Examples.Client;
-using Examples.Gateway;
 using LightNet;
 using LightNet.Message;
 using System.Buffers;
@@ -12,8 +11,8 @@ namespace Examples.Services
         private readonly ILogger<ServerService> logger;
         private readonly ApplicationOptions applicationOptions;
         private readonly ChannelWriter<AbstractNetMessage> channelWriter;
-        public ServerService(ILogger<ServerService> _logger, ClientProcessService _messageProcessor, ApplicationOptions applicationOptions, MessageResolvers resolvers)
-            : base(resolvers.CSResolver)
+        public ServerService(ILogger<ServerService> _logger, ClientProcessService _messageProcessor, ApplicationOptions applicationOptions)
+            : base(MessageResolvers.CSResolver)
         {
             channelWriter = _messageProcessor.GetWriter;
             this.applicationOptions = applicationOptions;
@@ -65,10 +64,9 @@ namespace Examples.Services
             await ValueTask.CompletedTask;
         }
 
-        public override void OnReceive(AbstractNetMessage message)
+        public override void OnReceive(IConnectionSession session, AbstractNetMessage message)
         {
-            channelWriter.WriteAsync(message);//.AsTask().Wait();
-            //channelWriter.TryWrite(message);
+            _ = channelWriter.WriteAsync(message);
         }
     }
 }

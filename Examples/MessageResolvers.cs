@@ -6,8 +6,15 @@ namespace Examples
 {
     public class MessageResolvers
     {
-        public readonly MessageResolver GatewayResolver = MessageResolver.Create<GatewayMessage>();
-        public readonly MessageResolver CSResolver = MessageResolver.Create<CSMessage>();
+        /// <summary>
+        /// 网关消息解析器
+        /// </summary>
+        public static readonly MessageResolver GatewayResolver = MessageResolver.Create<GatewayMessage>();
+
+        /// <summary>
+        /// 客户端消息解析器
+        /// </summary>
+        public static readonly MessageResolver CSResolver = MessageResolver.Create<CSMessage>();
 
     }
 }

@@ -13,7 +13,7 @@ namespace LightNet.Internals
         private CancellationTokenSource cancelTokenSource;
         public CancellationToken Token => cancelTokenSource.Token;
         public Boolean IsCancellationRequested => cancelTokenSource.IsCancellationRequested;
-        public Boolean IsComplete {  get; private set; }
+        public Boolean IsComplete { get; private set; }
 
         public CancelCompletionSignal(Boolean defaultState = false)
         {

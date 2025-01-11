@@ -8,8 +8,8 @@ namespace LightNet.Network
     {
         protected readonly Socket socket;
 
-        public static Int32 DEFAULT_SEND_BUFFER_SIZE = 1024 * 1024 * 4;
-        public static Int32 DEFAULT_RECEIVE_BUFFER_SIZE = 1024 * 1024 * 4;
+        public static Int32 DEFAULT_SEND_BUFFER_SIZE = 1024 * 64;
+        public static Int32 DEFAULT_RECEIVE_BUFFER_SIZE = 1024 * 64;
 
         protected IPV4Socket()
         {

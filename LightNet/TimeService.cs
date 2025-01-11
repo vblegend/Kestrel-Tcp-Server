@@ -29,13 +29,34 @@ namespace LightNet
             _tickFrequency = TimeSpan.TicksPerSecond / (double)Stopwatch.Frequency;
         }
 
-        public UInt64 UtcTicks()
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <returns></returns>
+        public UInt64 UtcTicks
         {
-            long currentTimestamp = Stopwatch.GetTimestamp();
-            long elapsedTicks = (long)((currentTimestamp - _baseTimestamp) * _tickFrequency);
-            return (UInt64)(_baseTicks + elapsedTicks);
+            get
+            {
+                long currentTimestamp = Stopwatch.GetTimestamp();
+                long elapsedTicks = (long)((currentTimestamp - _baseTimestamp) * _tickFrequency);
+                return (UInt64)(_baseTicks + elapsedTicks);
+            }
         }
 
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <returns></returns>
+        public UInt64 LocalTicks
+        {
+            get
+            {
+                long currentTimestamp = Stopwatch.GetTimestamp();
+                long elapsedTicks = (long)((currentTimestamp - _baseTimestamp) * _tickFrequency);
+                return (UInt64)(_baseTicks + elapsedTicks + LocalOffset.Ticks);
+            }
+        }
 
 
 
@@ -52,12 +73,75 @@ namespace LightNet
         /// <summary>
         /// 获取本地时间
         /// </summary>
-        public DateTime Now()
+        public DateTime LocalNow()
         {
             long currentTimestamp = Stopwatch.GetTimestamp();
             long elapsedTicks = (long)((currentTimestamp - _baseTimestamp) * _tickFrequency);
             return new DateTime(_baseTicks + elapsedTicks + LocalOffset.Ticks, DateTimeKind.Local);
         }
+
+
+
+
+
+        /// <summary>
+        /// 获取本地时间
+        /// </summary>
+        public UInt64 LocalMillisecond
+        {
+            get
+            {
+                long currentTimestamp = Stopwatch.GetTimestamp();
+                long elapsedTicks = (long)((currentTimestamp - _baseTimestamp) * _tickFrequency);
+                return (UInt64)(_baseTicks + elapsedTicks + LocalOffset.Ticks) / TimeSpan.TicksPerMillisecond;
+            }
+        }
+
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <returns></returns>
+        public UInt64 UtcMillisecond
+        {
+            get
+            {
+                long currentTimestamp = Stopwatch.GetTimestamp();
+                long elapsedTicks = (long)((currentTimestamp - _baseTimestamp) * _tickFrequency);
+                return (UInt64)(_baseTicks + elapsedTicks + LocalOffset.Ticks) / TimeSpan.TicksPerMillisecond;
+            }
+        }
+
+
+
+        /// <summary>
+        /// 获取本地时间
+        /// </summary>
+        public UInt64 LocalSecond
+        {
+            get
+            {
+                long currentTimestamp = Stopwatch.GetTimestamp();
+                long elapsedTicks = (long)((currentTimestamp - _baseTimestamp) * _tickFrequency);
+                return (UInt64)(_baseTicks + elapsedTicks + LocalOffset.Ticks) / TimeSpan.TicksPerSecond;
+            }
+        }
+
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <returns></returns>
+        public UInt64 UtcSecond
+        {
+            get
+            {
+                long currentTimestamp = Stopwatch.GetTimestamp();
+                long elapsedTicks = (long)((currentTimestamp - _baseTimestamp) * _tickFrequency);
+                return (UInt64)(_baseTicks + elapsedTicks + LocalOffset.Ticks) / TimeSpan.TicksPerSecond;
+            }
+        }
+
     }
 
 

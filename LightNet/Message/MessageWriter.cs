@@ -1,5 +1,5 @@
-﻿using Microsoft.IO;
-using LightNet.Pools;
+﻿using LightNet.Pools;
+using Microsoft.IO;
 using System;
 using System.Buffers;
 using System.Runtime.CompilerServices;
@@ -21,7 +21,7 @@ namespace LightNet.Message
 
         public void Write(AbstractNetMessage message)
         {
-            var timeTicks = TimeService.Default.UtcTicks();
+            var timeTicks = TimeService.Default.UtcTicks;
             using (RecyclableMemoryStream payloadStream = StreamPool.GetStream())
             {
                 MessageFlags flags = MessageFlags.None;

@@ -1,6 +1,4 @@
 ﻿using Examples.Client;
-using Examples.Gateway;
-using LightNet;
 using LightNet;
 using LightNet.Message;
 using System.Threading.Channels;
@@ -13,15 +11,16 @@ namespace Examples.Services
 
         private readonly ILogger<ClientProcessService> logger = LoggerProvider.CreateLogger<ClientProcessService>();
         private readonly Channel<AbstractNetMessage> messageChannel = Channel.CreateUnbounded<AbstractNetMessage>(new UnboundedChannelOptions() { SingleReader = true, SingleWriter = true });
-        private readonly AsyncMessageRouter msgRouter;
+        private AsyncMessageRouter msgRouter;
         public ChannelWriter<AbstractNetMessage> GetWriter => messageChannel.Writer;
         public ClientProcessService()
         {
-            msgRouter = new AsyncMessageRouter(messageChannel.Reader, this, true);
+
         }
 
         public async Task StartAsync(CancellationToken cancellationToken)
         {
+            msgRouter = new AsyncMessageRouter(messageChannel.Reader, this, true);
             await msgRouter.StartAsync(cancellationToken);
         }
 

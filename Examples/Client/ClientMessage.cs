@@ -4,12 +4,12 @@ using System.Buffers;
 
 namespace Examples.Client
 {
-    public abstract class CSMessage: AbstractNetMessage { }
+    public abstract class CSMessage : AbstractNetMessage { }
 
 
 
 
-    [Message(ClientMessageKind.Example, 10000)]
+    [Message(ClientMessageKind.Example, true, 0)]
     public class ClientMessage : CSMessage
     {
         public long X = 123;

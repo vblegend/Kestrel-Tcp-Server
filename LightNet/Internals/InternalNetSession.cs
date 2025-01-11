@@ -11,17 +11,15 @@ namespace LightNet.Internals
     internal class InternalNetSession : IConnectionSession
     {
         private Socket _socket;
-        private PipeWriter writer;
 
+        private PipeWriter writer;
         public long ConnectionId { get; set; }
         public object[] Datas { get; } = [null, null, null, null, null];
         public EndPoint RemoteEndPoint { get; set; }
         public DateTime ConnectTime { get; set; }
-
         public SessionShutdownCause CloseCause { get; private set; }
-
         public IBufferWriter<byte> Writer => writer;
-
+        public bool IsConnected => _socket.Connected;
         public void Close(SessionShutdownCause cause)
         {
             _socket?.Close();

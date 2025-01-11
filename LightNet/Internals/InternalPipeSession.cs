@@ -3,7 +3,6 @@ using System.Buffers;
 using System.IO.Pipelines;
 using System.IO.Pipes;
 using System.Net;
-using System.Net.Sockets;
 using System.Threading.Tasks;
 
 namespace LightNet.Internals
@@ -22,6 +21,8 @@ namespace LightNet.Internals
 
         public IBufferWriter<byte> Writer => writer;
 
+        public bool IsConnected => stream.IsConnected;
+
         public void Close(SessionShutdownCause cause)
         {
             stream?.Close();
@@ -35,6 +36,7 @@ namespace LightNet.Internals
         {
             this.stream = stream;
             writer = PipeWriter.Create(stream, new StreamPipeWriterOptions(minimumBufferSize: writeBufferSize));
+
         }
 
 

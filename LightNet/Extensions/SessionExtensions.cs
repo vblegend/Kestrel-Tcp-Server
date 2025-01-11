@@ -17,6 +17,7 @@ namespace System.Buffers
         }
 
 
+
         public static async ValueTask WriteFlushAsync(this IConnectionSession context, AbstractNetMessage message)
         {
             using (var writer = new MessageWriter(context.Writer))

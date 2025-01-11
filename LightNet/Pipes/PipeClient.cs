@@ -1,22 +1,20 @@
-﻿using Microsoft.AspNetCore.WebUtilities;
-using Microsoft.Extensions.Logging;
-using LightNet.Adapters;
+﻿using LightNet.Adapters;
+using LightNet.Internals;
 using LightNet.Network;
+using Microsoft.AspNetCore.WebUtilities;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Buffers;
 using System.IO.Pipelines;
 using System.IO.Pipes;
 using System.Threading;
 using System.Threading.Tasks;
-using LightNet.Internals;
-using static System.Collections.Specialized.BitVector32;
 
 namespace LightNet.Pipes
 {
     public class PipeClient : IPacketClient
     {
         private readonly ILogger<TCPServer> logger = LoggerProvider.CreateLogger<TCPServer>();
-        private UInt32 _minimumPacketLength = 1;
         private CancellationTokenSource cancelTokenSource = null;
         private NamedPipeClientStream stream = null;
         private ClientHandlerAdapter handlerAdapter = null;
@@ -88,7 +86,7 @@ namespace LightNet.Pipes
         {
             if (cancelTokenSource != null) throw new Exception("不能重复连接");
             cancelTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            var stream = new NamedPipeClientStream(serverName, pipeName, PipeDirection.InOut, System.IO.Pipes.PipeOptions.Asynchronous);
+            var stream = new NamedPipeClientStream(serverName, pipeName, PipeDirection.InOut, PipeComponent.DEFAULT_PIPE_OPTIONS);
             await stream.ConnectAsync(cancellationToken);
             _ = OnConnectedAsync(stream, cancelTokenSource.Token);
         }
@@ -105,41 +103,22 @@ namespace LightNet.Pipes
         {
             this.stream = stream;
             stopCompleted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-            long minimumReadSize = _minimumPacketLength;
-            
+            Int32 minimumReadSize = 1;
+
             try
             {
                 session.ConnectionId = 0;
-                session.ConnectTime = TimeService.Default.Now();
+                session.ConnectTime = TimeService.Default.LocalNow();
                 session.Init(stream, sendBufferSize);
                 var reader = PipeReader.Create(stream, new StreamPipeReaderOptions(bufferSize: receiveBufferSize));
                 await handlerAdapter.OnConnection(session);
                 while (!cancellationToken.IsCancellationRequested && stream.IsConnected)
                 {
-                    var result = await reader.ReadAtLeastAsync((int)minimumReadSize, cancellationToken);
+                    var result = await reader.ReadAtLeastAsync(minimumReadSize, cancellationToken);
                     if (result.IsCompleted) break;
-                    minimumReadSize = _minimumPacketLength;
-                    var bufferReader = new SequenceReader<byte>(result.Buffer);
-                    Int64 len = 0;
-                    while (bufferReader.Remaining >= _minimumPacketLength)
-                    {
-                        var parseResult = handlerAdapter.OnPacket(session, ref bufferReader);
-                        if (!parseResult.IsCompleted)
-                        {
-                            minimumReadSize = parseResult.Length;
-                            break;
-                        }
-                        len += parseResult.Length;
-                    }
-                    if (len > 0)
-                    {
-                        reader.AdvanceTo(result.Buffer.GetPosition(len));
-                    }
-                    else
-                    {
-                        logger.LogDebug("Receive Partial Packet: {0}/{1}", result.Buffer.Length, minimumReadSize);
-                        reader.AdvanceTo(result.Buffer.Start);
-                    }
+                    var RESULT = handlerAdapter.OnPacket(session, result.Buffer);
+                    reader.AdvanceTo(result.Buffer.GetPosition(RESULT.ReadLength));
+                    minimumReadSize = RESULT.NextReadLength;
                 }
                 if (cancellationToken.IsCancellationRequested)
                 {
@@ -150,7 +129,8 @@ namespace LightNet.Pipes
                     session.Close(SessionShutdownCause.UNEXPECTED_DISCONNECTED);
                 }
             }
-            catch (OperationCanceledException) {
+            catch (OperationCanceledException)
+            {
                 session.Close(SessionShutdownCause.SHUTTING_DOWN);
             }
             catch (Exception ex)
@@ -185,16 +165,5 @@ namespace LightNet.Pipes
             CloseAsync().Wait();
         }
 
-        public UInt32 MinimumPacketLength
-        {
-            get
-            {
-                return _minimumPacketLength;
-            }
-            set
-            {
-                _minimumPacketLength = value;
-            }
-        }
     }
 }

@@ -30,27 +30,28 @@ namespace LightNet.Adapters
     /// </summary>
     public readonly struct UnPacketResult
     {
-        public UnPacketResult(bool complete, long length,long nextPacketSize = 0)
+        /// <summary>
+        /// 构造一个封包读取结果，给出已读数据长度和下次读取长度
+        /// </summary>
+        /// <param name="readLength"></param>
+        /// <param name="nextReadLength"></param>
+        /// <exception cref="InvalidOperationException"></exception>
+        public UnPacketResult(Int32 readLength, Int32 nextReadLength = 1)
         {
-            IsCompleted = complete;
-            Length = length;
-            NextPacketSize = nextPacketSize;
+            if (nextReadLength < 1) throw new ArgumentOutOfRangeException(nameof(nextReadLength));
+            ReadLength = readLength;
+            NextReadLength = nextReadLength;
         }
 
         /// <summary>
-        /// 待移除
+        /// 成功读取的报文长度
         /// </summary>
-        public readonly bool IsCompleted;
-
-        /// <summary>
-        /// 成功处理的报文长度
-        /// </summary>
-        public readonly long Length;
+        public readonly Int32 ReadLength;
 
         /// <summary>
         /// 下次需要的报文长度
         /// </summary>
-        public readonly long NextPacketSize;
+        public readonly Int32 NextReadLength;
 
     }
 
@@ -94,12 +95,8 @@ namespace LightNet.Adapters
         /// 收到任意封包，进行自定义解析
         /// </summary>
         /// <param name="session"></param>
-        /// <param name="sequence"></param>
+        /// <param name="buffer"></param>
         /// <returns></returns>
-        //public abstract UnPacketResult OnPacket(IConnectionSession session, ref SequenceReader<byte> reader);
-
-
-
         public abstract UnPacketResult OnPacket(IConnectionSession session, ReadOnlySequence<byte> buffer);
 
 

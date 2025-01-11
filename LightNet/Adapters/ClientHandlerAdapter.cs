@@ -36,9 +36,9 @@ namespace LightNet.Adapters
         /// <summary>
         /// 收到一个封包
         /// </summary>
-        /// <param name="sequence"></param>
+        /// <param name="buffer"></param>
         /// <returns></returns>
-        public abstract UnPacketResult OnPacket(IConnectionSession session, ref SequenceReader<byte> reader);
+        public abstract UnPacketResult OnPacket(IConnectionSession session, ReadOnlySequence<byte> buffer);
 
     }
 }

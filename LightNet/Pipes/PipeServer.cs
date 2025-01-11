@@ -1,15 +1,14 @@
-﻿using Microsoft.AspNetCore.WebUtilities;
-using Microsoft.Extensions.Logging;
-using LightNet.Adapters;
+﻿using LightNet.Adapters;
 using LightNet.Internals;
 using LightNet.Network;
+using Microsoft.AspNetCore.WebUtilities;
+using Microsoft.Extensions.Logging;
 using System;
 using System.IO.Pipelines;
 using System.IO.Pipes;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Buffers;
 
 
 namespace LightNet.Pipes
@@ -19,10 +18,8 @@ namespace LightNet.Pipes
         private String PipeName;
         private Int64 _currentConnectionCounter;
         private Int64 ConnectionIdSource;
-        public UInt32 _minimumPacketLength = 1;
         public Int32 _maximumConnectionLimit = 65535;
         private readonly ILogger<TCPServer> logger = LoggerProvider.CreateLogger<TCPServer>();
-        private readonly InternalSessionPool<InternalPipeSession> sessionPool;
 
         private Int32 receiveBufferSize = 8192;
         private Int32 sendBufferSize = 8192;
@@ -36,7 +33,7 @@ namespace LightNet.Pipes
 
         public PipeServer()
         {
-            this.sessionPool = new InternalSessionPool<InternalPipeSession>(Environment.ProcessorCount * 2);
+
         }
 
         public void SetAdapter(ServerHandlerAdapter handlerAdapter)
@@ -47,7 +44,6 @@ namespace LightNet.Pipes
         public void Dispose()
         {
             this.StopAsync().Wait();
-            this.sessionPool.Dispose();
         }
 
         /// <summary>
@@ -100,7 +96,7 @@ namespace LightNet.Pipes
                 PipeDirection.InOut,         // 管道方向（双向）
                 NamedPipeServerStream.MaxAllowedServerInstances,                      // 最大实例数
                 PipeTransmissionMode.Byte, // 传输模式
-                System.IO.Pipes.PipeOptions.Asynchronous,  // 管道选项
+                PipeComponent.DEFAULT_PIPE_OPTIONS,  // 异步管道
                 sendBufferSize,               // 输入缓冲区大小
                 receiveBufferSize                // 输出缓冲区大小
             );
@@ -154,50 +150,27 @@ namespace LightNet.Pipes
         private async Task OnConnectedAsync(NamedPipeServerStream serverStream, CancellationToken cancellationToken)
         {
             InternalPipeSession session = null;
-            long minimumReadSize = _minimumPacketLength;
+            Int32 minimumReadSize = 1;
             try
             {
                 Interlocked.Increment(ref _currentConnectionCounter);
                 // 连接数限制
                 if (_currentConnectionCounter > _maximumConnectionLimit) return;
                 var reader = PipeReader.Create(serverStream, new StreamPipeReaderOptions(bufferSize: receiveBufferSize));
-                session = sessionPool.Get();
+                session = new InternalPipeSession();
                 session.ConnectionId = Interlocked.Increment(ref ConnectionIdSource);
-                session.ConnectTime = TimeService.Default.Now();
+                session.ConnectTime = TimeService.Default.LocalNow();
                 session.Init(serverStream, sendBufferSize);
                 var allowConnect = await handlerAdapter.OnConnected(session);
                 if (allowConnect)
                 {
                     while (!cancellationToken.IsCancellationRequested && serverStream.IsConnected)
                     {
-                        var result = await reader.ReadAtLeastAsync((int)minimumReadSize, cancellationToken);
+                        var result = await reader.ReadAtLeastAsync(minimumReadSize, cancellationToken);
                         if (result.IsCompleted) break;
                         var RESULT = handlerAdapter.OnPacket(session, result.Buffer);
-                        reader.AdvanceTo(result.Buffer.GetPosition(RESULT.Length));
-                        minimumReadSize = RESULT.NextPacketSize;
-
-                        //minimumReadSize = _minimumPacketLength;
-                        //var bufferReader = new SequenceReader<byte>(result.Buffer);
-                        //Int64 len = 0;
-                        //while (bufferReader.Remaining >= _minimumPacketLength)
-                        //{
-                        //    var parseResult = await handlerAdapter.OnPacket(session, ref bufferReader);
-                        //    if (!parseResult.IsCompleted)
-                        //    {
-                        //        minimumReadSize = parseResult.Length;
-                        //        break;
-                        //    }
-                        //    len += parseResult.Length;
-                        //}
-                        //if (len > 0)
-                        //{
-                        //    reader.AdvanceTo(result.Buffer.GetPosition(len));
-                        //}
-                        //else
-                        //{
-                        //    logger.LogDebug("Receive Partial Packet: {0}/{1}", result.Buffer.Length, minimumReadSize);
-                        //    reader.AdvanceTo(result.Buffer.Start);
-                        //}
+                        reader.AdvanceTo(result.Buffer.GetPosition(RESULT.ReadLength));
+                        minimumReadSize = RESULT.NextReadLength;
                     }
                     if (cancellationToken.IsCancellationRequested)
                     {
@@ -247,7 +220,6 @@ namespace LightNet.Pipes
                 if (session != null)
                 {
                     await handlerAdapter.OnClose(session);
-                    sessionPool.Return(session);
                 }
                 if (Interlocked.Decrement(ref _currentConnectionCounter) == 0)
                 {
@@ -256,18 +228,6 @@ namespace LightNet.Pipes
                         stopCompleted?.TrySetResult();
                     }
                 }
-            }
-        }
-
-        public UInt32 MinimumPacketLength
-        {
-            get
-            {
-                return _minimumPacketLength;
-            }
-            set
-            {
-                _minimumPacketLength = value;
             }
         }
 

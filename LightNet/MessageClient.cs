@@ -11,9 +11,11 @@ namespace LightNet
 {
     public abstract class MessageClient : ClientHandlerAdapter
     {
-        private IPacketClient packetClient;
-
-        public readonly MessageParser messageParser = new MessageParser();
+        public IPacketClient packetClient;
+        /// <summary>
+        /// Message 最短可读的报文长度
+        /// </summary>
+        private const Int32 MINIMUM_PACKET_LENGTH = 5;
 
         public readonly MessageResolver messageResolver;
 
@@ -49,7 +51,6 @@ namespace LightNet
                 default:
                     throw new ArgumentNullException("uri");
             }
-            packetClient.MinimumPacketLength = 5;
             packetClient.SetAdapter(this);
             await packetClient.ConnectAsync(remoteUri, cancellationToken);
         }
@@ -66,17 +67,29 @@ namespace LightNet
 
 
 
-        public override UnPacketResult OnPacket(IConnectionSession session,ref SequenceReader<byte> reader)
+        public override UnPacketResult OnPacket(IConnectionSession session, ReadOnlySequence<byte> buffer)
         {
-            var result = messageParser.TryParse(ref reader, messageResolver, out AbstractNetMessage message, out var length);
-            if (message != null)
+            Int32 len = 0;
+            var bufferReader = new SequenceReader<byte>(buffer);
+            while (bufferReader.Remaining >= MINIMUM_PACKET_LENGTH)
             {
-                message.Session = session;
-                // 待优化
-                Task.Run(() => OnReceive(session, message));
+                var result = messageResolver.TryReadMessage(ref bufferReader, out AbstractNetMessage message, out var length);
+                if (result == ParseResult.Ok)
+                {
+                    message.Session = session;
+                    OnReceive(session, message);
+                }
+                else if (result == ParseResult.Partial)
+                {
+                    return new UnPacketResult(len, length);
+                }
+                else if (result == ParseResult.Illicit)
+                {
+                    throw new IllegalDataException("Illegal packet detected. Connection to be closed.");
+                }
+                len += length;
             }
-            if (result == ParseResult.Illicit) throw new Exception("Illegal packet detected. Connection to be closed.");
-            return new UnPacketResult(result == ParseResult.Ok, length);
+            return new UnPacketResult(len, MINIMUM_PACKET_LENGTH);
         }
 
         /// <summary>
@@ -86,6 +99,6 @@ namespace LightNet
         /// <param name="session"></param>
         /// <param name="message"></param>
         /// <returns></returns>
-        public abstract ValueTask OnReceive(IConnectionSession session, AbstractNetMessage message);
+        public abstract void OnReceive(IConnectionSession session, AbstractNetMessage message);
     }
 }

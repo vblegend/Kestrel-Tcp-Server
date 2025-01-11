@@ -1,6 +1,7 @@
 ﻿using Examples.Client;
 using LightNet;
 using LightNet.Message;
+using LightNet.Pipes;
 using System.Buffers;
 using System.Diagnostics;
 
@@ -17,8 +18,8 @@ namespace Examples.Services
 
 
 
-        public ClientService(ILogger<ClientService> _logger, ApplicationOptions applicationOptions, MessageResolvers resolvers) 
-            : base(resolvers.CSResolver)
+        public ClientService(ILogger<ClientService> _logger, ApplicationOptions applicationOptions)
+            : base(MessageResolvers.CSResolver)
         {
             logger = _logger;
             sendToken = null;
@@ -31,23 +32,31 @@ namespace Examples.Services
             CancellationTokenSource cancelToken = new CancellationTokenSource();
             ThreadPool.QueueUserWorkItem(async (e) =>
             {
-                while (!cancelToken.IsCancellationRequested)
+                var message = MessageFactory.Create<ClientMessage>();
+                message.X = 19201080;
+
+                var s = this.packetClient as PipeClient;
+
+                int count = 0;
+                while (!cancelToken.IsCancellationRequested && session != null)
                 {
                     Stopwatch stopwatch = Stopwatch.StartNew();
                     try
                     {
-                        for (int i = 0; i < 100000; i++)
+                        for (int i = 0; !cancelToken.IsCancellationRequested && i < 100000; i++)
                         {
-                            var message = MessageFactory.Create<ClientMessage>();
-                            message.X = 19201080;
                             session?.Write(message);
-                            message.Return();
+                            count++;
                         }
-                        if (session != null) await session.FlushAsync();
+                        if (session != null && !cancelToken.IsCancellationRequested) await session.FlushAsync();
+                        if (count % 1000000 == 0)
+                        {
+                            logger.LogInformation("Send Message {0}", count);
+                        }
                     }
-                    catch (Exception)
+                    catch (Exception ex)
                     {
-
+                        //Console.WriteLine(ex.StackTrace);
                     }
                     finally
                     {
@@ -55,6 +64,7 @@ namespace Examples.Services
                     }
                     Thread.Sleep(1);
                 }
+                message.Return();
             });
 
             return cancelToken;
@@ -65,10 +75,6 @@ namespace Examples.Services
         public async Task StartAsync(CancellationToken cancellationToken)
         {
             await ConnectAsync(applicationOptions.ClientUri, cancellationToken);
-            await base.CloseAsync();
-
-            await ConnectAsync(applicationOptions.ClientUri, cancellationToken);
-
             sendToken = StartSendMessage();
             await Task.CompletedTask;
         }
@@ -99,11 +105,10 @@ namespace Examples.Services
             await ValueTask.CompletedTask;
         }
 
-        public override async ValueTask OnReceive(IConnectionSession session, AbstractNetMessage message)
+        public override void OnReceive(IConnectionSession session, AbstractNetMessage message)
         {
             message.Return();
             logger.LogInformation("客户端收到消息。 {0}", message.Kind);
-            await ValueTask.CompletedTask;
         }
     }
 }

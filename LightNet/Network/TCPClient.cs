@@ -1,14 +1,13 @@
-﻿using Microsoft.Extensions.Logging;
-using LightNet.Adapters;
+﻿using LightNet.Adapters;
+using LightNet.Internals;
+using Microsoft.AspNetCore.WebUtilities;
+using Microsoft.Extensions.Logging;
 using System;
-using System.Buffers;
 using System.IO.Pipelines;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
-using LightNet.Internals;
-using Microsoft.AspNetCore.WebUtilities;
 
 
 
@@ -17,7 +16,6 @@ namespace LightNet.Network
     public class TCPClient : IPV4Socket, IPacketClient
     {
         private readonly ILogger<TCPServer> logger = LoggerProvider.CreateLogger<TCPServer>();
-        private UInt32 _minimumPacketLength = 1;
         private CancellationTokenSource cancelTokenSource = null;
         private NetworkStream networkStream = null;
         private ClientHandlerAdapter handlerAdapter = null;
@@ -116,41 +114,22 @@ namespace LightNet.Network
         private async Task OnConnectedAsync(Socket socket, CancellationToken cancellationToken)
         {
             stopCompleted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-            long minimumReadSize = _minimumPacketLength;
+            Int32 minimumReadSize = 1;
             try
             {
                 networkStream = new NetworkStream(socket, true);
                 session.Init(networkStream, sendBufferSize);
                 session.ConnectionId = 0;
-                session.ConnectTime = TimeService.Default.Now();
+                session.ConnectTime = TimeService.Default.LocalNow();
                 var reader = PipeReader.Create(networkStream, new StreamPipeReaderOptions(bufferSize: receiveBufferSize));
                 await handlerAdapter.OnConnection(session);
                 while (!cancellationToken.IsCancellationRequested && socket.Connected)
                 {
-                    var result = await reader.ReadAtLeastAsync((int)minimumReadSize, cancellationToken);
+                    var result = await reader.ReadAtLeastAsync(minimumReadSize, cancellationToken);
                     if (result.IsCompleted) break;
-                    minimumReadSize = _minimumPacketLength;
-                    var bufferReader = new SequenceReader<byte>(result.Buffer);
-                    Int64 len = 0;
-                    while (bufferReader.Remaining >= _minimumPacketLength)
-                    {
-                        var parseResult = handlerAdapter.OnPacket(session, ref bufferReader);
-                        if (!parseResult.IsCompleted)
-                        {
-                            minimumReadSize = parseResult.Length;
-                            break;
-                        }
-                        len += parseResult.Length;
-                    }
-                    if (len > 0)
-                    {
-                        reader.AdvanceTo(result.Buffer.GetPosition(len));
-                    }
-                    else
-                    {
-                        logger.LogDebug("Receive Partial Packet: {0}/{1}", result.Buffer.Length, minimumReadSize);
-                        reader.AdvanceTo(result.Buffer.Start);
-                    }
+                    var RESULT = handlerAdapter.OnPacket(session, result.Buffer);
+                    reader.AdvanceTo(result.Buffer.GetPosition(RESULT.ReadLength));
+                    minimumReadSize = RESULT.NextReadLength;
                 }
                 if (cancellationToken.IsCancellationRequested)
                 {
@@ -168,8 +147,21 @@ namespace LightNet.Network
             }
             catch (Exception ex)
             {
-                await handlerAdapter.OnError(session, ex);
-                session.Close(SessionShutdownCause.ERROR);
+                if (ex.InnerException is SocketException socketEx)
+                {
+                    if (socketEx.SocketErrorCode == SocketError.ConnectionReset || socketEx.SocketErrorCode == SocketError.ConnectionAborted)
+                    {
+                        session?.Close(SessionShutdownCause.UNEXPECTED_DISCONNECTED);
+                    }
+                    else
+                    {
+                        await handlerAdapter.OnError(session, ex);
+                    }
+                }
+                else
+                {
+                    await handlerAdapter.OnError(session, ex);
+                }
             }
             finally
             {
@@ -181,32 +173,10 @@ namespace LightNet.Network
             }
         }
 
-        /// <summary>
-        /// 收到任意封包，进行自定义解析
-        /// </summary>
-        /// <param name="buffer"></param>
-        /// <returns>一个有效封包的长度</returns>
-        protected virtual ValueTask<UInt32> OnPacket(ReadOnlySequence<Byte> buffer)
-        {
-            return new ValueTask<UInt32>((UInt32)buffer.Length);
-        }
-
         public override void Dispose()
         {
             CloseAsync().Wait();
         }
 
-
-        public UInt32 MinimumPacketLength
-        {
-            get
-            {
-                return _minimumPacketLength;
-            }
-            set
-            {
-                _minimumPacketLength = value;
-            }
-        }
     }
 }

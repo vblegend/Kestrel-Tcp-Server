@@ -1,11 +1,8 @@
 
 using Examples;
 using Examples.Client;
-using Examples.Gateway;
 using Examples.Services;
 using LightNet.Message;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Hosting;
 using Serilog;
 using Serilog.Core;
 using Serilog.Extensions.Logging;
@@ -37,10 +34,14 @@ namespace LightNet
         }
 
 
-
-
         public static async Task Main(string[] args)
         {
+            // 动态调整 内存池容量
+            MFactory<ClientMessage>.SetPoolMaxCapacity(1500000, true);
+            // 动态调整 禁用内存池
+            MFactory<ClientMessage>.SetPoolMaxCapacity(0, true);
+
+
             var host = CreateHostBuilder(args).Build();
             await host.RunAsync();
             host.Dispose();
@@ -67,10 +68,6 @@ namespace LightNet
             services.AddSingleton<ApplicationOptions>(appOptions);
 
             services.AddSingleton<IPBlacklistTrie>(ipBlock);
-
-
-
-            services.AddSingleton<MessageResolvers>(new MessageResolvers());
 
             services.AddTimeService();
             services.AddSingleton<TestService>();

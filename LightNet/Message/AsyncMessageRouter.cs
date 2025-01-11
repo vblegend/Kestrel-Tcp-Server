@@ -22,18 +22,17 @@ namespace LightNet.Message
     /// <summary>
     /// 消息路由器
     /// </summary>
-    public class AsyncMessageRouter
+    public sealed class AsyncMessageRouter
     {
+
         private const Int32 BaseIndex = 32767;
         private readonly ILogger<AsyncMessageRouter> logger = LoggerProvider.CreateLogger<AsyncMessageRouter>();
         private readonly AsyncMessageHandlerDelegate<AbstractNetMessage>[] _messageHandlers = new AsyncMessageHandlerDelegate<AbstractNetMessage>[65535];
         private readonly IMessageProcessor _messageProcessor;
         private readonly ChannelReader<AbstractNetMessage> channelReader;
-
         private CancelCompletionSignal cancelCompletionSignal = new CancelCompletionSignal(true);
-
-
         private readonly Boolean ExitWaitProcessComplete;
+
         /// <summary>
         /// 创建消息路由器并扫描processor内所有处理程序
         /// </summary>
@@ -54,7 +53,11 @@ namespace LightNet.Message
             }
         }
 
-
+        /// <summary>
+        /// 开始自动分发Channel中消息
+        /// </summary>
+        /// <param name="cancellationToken"></param>
+        /// <returns></returns>
         public async ValueTask StartAsync(CancellationToken cancellationToken)
         {
             await cancelCompletionSignal.CancelAsync();
@@ -62,6 +65,12 @@ namespace LightNet.Message
             ThreadPool.QueueUserWorkItem(ProcessMessage, null);
         }
 
+
+        /// <summary>
+        /// 停止自动消息分发任务
+        /// </summary>
+        /// <param name="cancellationToken"></param>
+        /// <returns></returns>
         public async ValueTask StopAsync(CancellationToken cancellationToken)
         {
             await cancelCompletionSignal.CancelAsync();
@@ -98,17 +107,18 @@ namespace LightNet.Message
             cancelCompletionSignal.Complete();
         }
 
-
-
-
-
-
-
-
-
-
-
-
+        /// <summary>
+        /// 手动分发Channel中所有消息
+        /// </summary>
+        /// <returns></returns>
+        public async Task ProcessAll()
+        {
+            AbstractNetMessage message;
+            while (channelReader.TryRead(out message))
+            {
+                await this.RouteAsync(message);
+            }
+        }
 
         /// <summary>
         /// 注册消息处理器
@@ -149,7 +159,7 @@ namespace LightNet.Message
             {
                 logger.LogWarning("a message handler kind:[{0}] is overwritten..", kind);
             }
-            logger.LogInformation("Register Message Handler [{0}] {1}.{2}", kind, originMethod.DeclaringType.Name, originMethod.Name);
+            logger.LogDebug("Register Message Handler [{0}] {1}.{2}", kind, originMethod.DeclaringType.Name, originMethod.Name);
             _messageHandlers[BaseIndex + kind] = messageHandler;
         }
 

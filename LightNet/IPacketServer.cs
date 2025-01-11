@@ -31,12 +31,6 @@ namespace LightNet
 
 
         /// <summary>
-        /// 获取/设置 触发OnPacket事件的最小封包长度
-        /// </summary>
-        UInt32 MinimumPacketLength { get; set; }
-
-
-        /// <summary>
         /// 获取/设置 最大连接限制
         /// </summary>
         Int32 MaximumConnectionLimit { get; set; }

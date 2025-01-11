@@ -36,11 +36,6 @@ namespace LightNet
         Task CloseAsync();
 
         /// <summary>
-        /// 获取/设置 触发OnPacket事件的最小封包长度
-        /// </summary>
-        UInt32 MinimumPacketLength { get; set; }
-
-        /// <summary>
         /// 接收缓冲区大小
         /// </summary>
         Int32 ReceiveBufferSize { get; set; }

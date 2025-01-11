@@ -30,12 +30,13 @@ namespace LightNet.Message
         /// <summary>
         /// 设置消息池的最大容量，对象池中对象数量超过此值时Return将不会继续放回池子
         /// </summary>
-        /// <param name="value"></param>
-        public void SetCapacity(Int32 value)
+        /// <param name="value">池子最大容量值</param>
+        /// <param name="releaseNow">是否立即释放多余的对象</param>
+        public void SetPoolMaxCapacity(Int32 value, Boolean releaseNow)
         {
-            if (value <= 1) throw new ArgumentOutOfRangeException("Parameter value must be greater than 1");
+            if (value < 0) throw new ArgumentOutOfRangeException("Parameter value must be greater than 0");
             _maxCapacity = value;
-            while (_numItems > _maxCapacity)
+            while (_numItems > _maxCapacity && releaseNow)
             {
                 var item = Get();
                 item._pool = null;
@@ -48,6 +49,16 @@ namespace LightNet.Message
             this._createFunc = _createFunc;
             this._maxCapacity = _poolCapacity;
         }
+
+
+
+        public TMessage TryGet(Func<TMessage> _createFunc)
+        {
+            if (this._maxCapacity == 0) return _createFunc();
+            return Get();
+        }
+
+
 
         /// <summary>
         /// 从池中取出一个消息对象，如果池中没有消息对象则新创建

@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 
 namespace LightNet.Internals
 {
@@ -19,11 +20,15 @@ namespace LightNet.Internals
     {
         internal static List<MessageMakeInfo> InitializedTypes = new List<MessageMakeInfo>();
 
-        static MessageLoader()
+#pragma warning disable CA2255 // 不应在库中使用 “ModuleInitializer” 属性
+        [ModuleInitializer]
+#pragma warning restore CA2255 // 不应在库中使用 “ModuleInitializer” 属性
+        public static void ScanMessageType()
         {
             foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies()) ResolveAssembly(assembly);
             AppDomain.CurrentDomain.AssemblyLoad += AppDomain_AssemblyLoad;
         }
+
         private static void AppDomain_AssemblyLoad(object sender, AssemblyLoadEventArgs args)
         {
             ResolveAssembly(args.LoadedAssembly);
@@ -31,7 +36,7 @@ namespace LightNet.Internals
 
         private static unsafe void ResolveAssembly(Assembly assembly)
         {
-            var processorTypes = assembly.GetTypes().Where(type => type.IsClass && !type.IsAbstract);
+            var processorTypes = assembly.GetTypes().Where(type => type.IsClass && !type.IsAbstract && type.IsPublic);
             foreach (var type in processorTypes)
             {
                 var attribuute = type.GetCustomAttribute<MessageAttribute>();
@@ -41,7 +46,7 @@ namespace LightNet.Internals
                     Type genericType = typeof(MFactory<>).MakeGenericType(type);
                     var InitialFactory = genericType.GetMethod("InitialFactory", BindingFlags.Static | BindingFlags.NonPublic);
                     var tryInit = (MFactoryInitialMethod)InitialFactory.CreateDelegate(typeof(MFactoryInitialMethod), null);
-                    tryInit(attribuute.Kind, attribuute.PoolCapacity);
+                    tryInit(attribuute.Kind, attribuute.UsePool, attribuute.PoolCapacity);
                     var getmessageMethod = genericType.GetMethod("GetMessage", BindingFlags.Static | BindingFlags.Public);
                     IntPtr funcPointer = getmessageMethod.MethodHandle.GetFunctionPointer();
                     InitializedTypes.Add(new MessageMakeInfo()

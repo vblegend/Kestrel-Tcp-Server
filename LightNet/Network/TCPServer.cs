@@ -1,15 +1,13 @@
-﻿using Microsoft.AspNetCore.WebUtilities;
-using Microsoft.Extensions.Logging;
-using LightNet.Adapters;
+﻿using LightNet.Adapters;
 using LightNet.Internals;
+using Microsoft.AspNetCore.WebUtilities;
+using Microsoft.Extensions.Logging;
 using System;
 using System.IO.Pipelines;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Buffers;
-using System.Diagnostics;
 
 
 
@@ -20,10 +18,8 @@ namespace LightNet.Network
     {
         private Int64 _currentConnectionCounter;
         private Int64 ConnectionIdSource;
-        public UInt32 _minimumPacketLength = 1;
         public Int32 _maximumConnectionLimit = 65535;
         private readonly ILogger<TCPServer> logger = LoggerProvider.CreateLogger<TCPServer>();
-        private readonly InternalSessionPool<InternalNetSession> sessionPool;
         private CancelCompletionSignal cancelCompletionSignal = new CancelCompletionSignal(true);
         private ServerHandlerAdapter handlerAdapter = null;
 
@@ -64,7 +60,6 @@ namespace LightNet.Network
 
         public TCPServer() : base()
         {
-            this.sessionPool = new InternalSessionPool<InternalNetSession>(Environment.ProcessorCount * 2);
         }
 
 
@@ -76,7 +71,6 @@ namespace LightNet.Network
 
         public override void Dispose()
         {
-            this.sessionPool.Dispose();
             base.Dispose();
         }
 
@@ -161,7 +155,7 @@ namespace LightNet.Network
         {
             NetworkStream networkStream = null;
             InternalNetSession session = null;
-            long minimumReadSize = _minimumPacketLength;
+            Int32 minimumReadSize = 1;
             try
             {
                 Interlocked.Increment(ref _currentConnectionCounter);
@@ -169,49 +163,20 @@ namespace LightNet.Network
                 if (_currentConnectionCounter > _maximumConnectionLimit) return;
                 networkStream = new NetworkStream(socket, ownsSocket: true);
                 var reader = PipeReader.Create(networkStream, new StreamPipeReaderOptions(bufferSize: receiveBufferSize));
-                session = sessionPool.Get();
+                session = new InternalNetSession();
                 session.ConnectionId = Interlocked.Increment(ref ConnectionIdSource);
-                session.ConnectTime = TimeService.Default.Now();
+                session.ConnectTime = TimeService.Default.LocalNow();
                 session.Init(networkStream, sendBufferSize);
                 var allowConnect = await handlerAdapter.OnConnected(session);
                 if (allowConnect)
                 {
                     while (!cancellationToken.IsCancellationRequested && socket.Connected)
                     {
-                        var result = await reader.ReadAtLeastAsync((int)minimumReadSize, cancellationToken);
+                        var result = await reader.ReadAtLeastAsync(minimumReadSize, cancellationToken);
                         if (result.IsCompleted) break;
-                        //minimumReadSize = _minimumPacketLength;
-
-
                         var RESULT = handlerAdapter.OnPacket(session, result.Buffer);
-
-                        
-                        reader.AdvanceTo(result.Buffer.GetPosition(RESULT.Length));
-                        minimumReadSize = RESULT.NextPacketSize;
-
-
-
-                        //var bufferReader = new SequenceReader<byte>(result.Buffer);
-                        //Int64 len = 0;
-                        //while (bufferReader.Remaining >= _minimumPacketLength)
-                        //{
-                        //    var parseResult = handlerAdapter.OnPacket(session, ref bufferReader);
-                        //    if (!parseResult.IsCompleted)
-                        //    {
-                        //        minimumReadSize = parseResult.Length;
-                        //        break;
-                        //    }
-                        //    len += parseResult.Length;
-                        //}
-                        //if (len > 0)
-                        //{
-                        //    reader.AdvanceTo(result.Buffer.GetPosition(len));
-                        //}
-                        //else
-                        //{
-                        //    logger.LogDebug("Receive Partial Packet: {0}/{1}", result.Buffer.Length, minimumReadSize);
-                        //    reader.AdvanceTo(result.Buffer.Start);
-                        //}
+                        reader.AdvanceTo(result.Buffer.GetPosition(RESULT.ReadLength));
+                        minimumReadSize = RESULT.NextReadLength;
                     }
                     if (cancellationToken.IsCancellationRequested)
                     {
@@ -260,7 +225,6 @@ namespace LightNet.Network
                 if (session != null)
                 {
                     await handlerAdapter.OnClose(session);
-                    sessionPool.Return(session);
                 }
                 if (Interlocked.Decrement(ref _currentConnectionCounter) == 0)
                 {
@@ -272,18 +236,6 @@ namespace LightNet.Network
 
             }
 
-        }
-
-        public UInt32 MinimumPacketLength
-        {
-            get
-            {
-                return _minimumPacketLength;
-            }
-            set
-            {
-                _minimumPacketLength = value;
-            }
         }
 
         public Int32 MaximumConnectionLimit

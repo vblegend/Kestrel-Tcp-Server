@@ -45,7 +45,7 @@ namespace LightNet
         /// <summary>
         /// 连接被拒绝
         /// </summary>
-        CONNECTION_DENIAL =6
+        CONNECTION_DENIAL = 6
 
     }
 
@@ -60,9 +60,14 @@ namespace LightNet
         /// </summary>
         public SessionShutdownCause CloseCause { get; }
         /// <summary>
-        /// 连接ID，递增，本次启动期间不会重复
+        /// 连接ID，递增，本次启动期间不会重复，客户端始终为0
         /// </summary>
         public long ConnectionId { get; }
+
+        /// <summary>
+        /// session连接是否可用
+        /// </summary>
+        public Boolean IsConnected { get; }
 
         /// <summary>
         /// 客户端IP、端口

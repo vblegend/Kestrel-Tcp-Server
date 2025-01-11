@@ -1,14 +1,20 @@
-﻿using LightNet.Internals;
+﻿using LightNet.Adapters;
+using LightNet.Internals;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 
 
 
 namespace LightNet.Message
 {
-    public class MessageResolver
+    /// <summary>
+    /// 消息解析器
+    /// </summary>
+    public sealed class MessageResolver
     {
         private readonly ILogger<MessageResolver> logger = LoggerProvider.CreateLogger<MessageResolver>();
         private readonly Dictionary<Int16, IntPtr> Keys = new();
@@ -31,7 +37,7 @@ namespace LightNet.Message
         private static Dictionary<Type, MessageResolver> typeCache = new Dictionary<Type, MessageResolver>();
 
         /// <summary>
-        /// 创建指定类型的
+        /// 创建实现类型基类的消息解析器
         /// </summary>
         /// <typeparam name="TMessage"></typeparam>
         /// <returns></returns>
@@ -47,7 +53,14 @@ namespace LightNet.Message
             return resolver;
         }
 
-        public unsafe AbstractNetMessage Resolver(Int16 kind)
+        /// <summary>
+        /// 根据kind解析消息对象
+        /// </summary>
+        /// <param name="kind"></param>
+        /// <returns></returns>
+        /// <exception cref="InvalidOperationException"></exception>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private unsafe AbstractNetMessage Resolver(Int16 kind)
         {
             if (Keys.TryGetValue(kind, out var p))
             {
@@ -57,6 +70,39 @@ namespace LightNet.Message
             throw new InvalidOperationException();
         }
 
+
+        /// <summary>
+        /// 尝试从字节流中解析消息
+        /// </summary>
+        /// <param name="reader"></param>
+        /// <param name="message"></param>
+        /// <param name="readLength"></param>
+        /// <returns></returns>
+        public ParseResult TryReadMessage(ref SequenceReader<byte> reader, out AbstractNetMessage message, out UInt16 readLength)
+        {
+            message = default;
+            readLength = 0;
+            reader.TryRead<ushort>(out var header);
+            if (header != AbstractNetMessage.Header) return ParseResult.Illicit;
+            reader.TryRead<MessageFlags>(out var flags);
+            reader.TryRead<UInt16>(out readLength);
+            if (reader.Remaining < readLength - 5) return ParseResult.Partial;
+            var kl = GetKindLen(flags);
+            reader.TryRead(kl, out Int16 kind);
+            reader.TryRead(out UInt64 time);
+            message = Resolver(kind);
+            message.Read(ref reader);
+            return ParseResult.Ok;
+        }
+
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static Byte GetKindLen(MessageFlags flags)
+        {
+            if ((flags & MessageFlags.Kind2) == MessageFlags.Kind2) return 2;
+            return 1;
+        }
+        // 474D 00 1300 02 00000000 08 FFFFFFFFFFFFFF7F
 
 
     }
