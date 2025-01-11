@@ -5,9 +5,9 @@
         public ApplicationOptions()
         {
             // 模拟配置文件
-            Boolean useTcpProtocol = false;
+            Boolean useTcpProtocol = true;
             // 提升发送接收缓冲区大小可以提升高吞吐量
-            var readBufferSize = 1024 * 8;
+            var readBufferSize = 1024 * 8000;
             var writeBufferSize = 1024 * 8;
             if (useTcpProtocol)
             {

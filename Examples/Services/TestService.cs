@@ -70,9 +70,8 @@ namespace Examples.Services
             // ==========================================================================================
             //  消息分发测试
             // ==========================================================================================
-            Channel<AbstractNetMessage> messageChannel = Channel.CreateUnbounded<AbstractNetMessage>(new UnboundedChannelOptions() { SingleReader = true, SingleWriter = true });
             var processor = new ClientMessageProcessService();
-            var msgRouter = new AsyncMessageRouter(messageChannel.Reader, processor, true);
+            var msgRouter = new AsyncMessageRouter(processor, null);
             var obj = MFactory<ClientMessage>.GetMessage();
             stopwatch = Stopwatch.StartNew();
             for (int i = 0; i < testCount; i++)

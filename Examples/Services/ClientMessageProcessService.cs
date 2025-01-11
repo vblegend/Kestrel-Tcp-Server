@@ -15,7 +15,7 @@ namespace Examples.Services
         public ChannelWriter<AbstractNetMessage> GetWriter => messageChannel.Writer;
         public ClientMessageProcessService()
         {
-            msgRouter = new AsyncMessageRouter(messageChannel.Reader, this, true);
+            msgRouter = new AsyncMessageRouter(this, messageChannel.Reader);
         }
 
         public async Task StartAsync(CancellationToken cancellationToken)
@@ -43,7 +43,6 @@ namespace Examples.Services
         public async ValueTask Process(ClientMessage message)
         {
             count++;
-            //await session.WriteFlushAsync(MessageFactory.ExampleMessage(count));
             if (count % 1000000 == 0)
             {
                 logger.LogInformation("Received packet: {0}", count);

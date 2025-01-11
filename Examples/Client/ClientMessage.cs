@@ -7,9 +7,7 @@ namespace Examples.Client
     public abstract class CSMessage : AbstractNetMessage { }
 
 
-
-
-    [Message(ClientMessageKind.Example, true, 0)]
+    [Message(ClientMessageKind.Example, PoolingOptions.Pooling)]
     public class ClientMessage : CSMessage
     {
         public long X = 123;

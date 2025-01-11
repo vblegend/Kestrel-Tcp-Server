@@ -46,7 +46,7 @@ namespace Examples.Services
             //    }
             //}
 
-            logger.LogInformation("Client Connected: {0}, ClientIp: {1}", session.ConnectionId, session.RemoteEndPoint);
+            logger.LogInformation("SERVER {0}[{1}], ClientIp: {2}", "CONNECTED" ,session.ConnectionId, session.RemoteEndPoint);
             await session.WriteFlushAsync(MessageFactory.Create<ClientMessage>());
             return true;
         }
@@ -54,13 +54,13 @@ namespace Examples.Services
 
         public override async ValueTask OnClose(IConnectionSession session)
         {
-            logger.LogInformation("Client    Closed: {0}, ClientIp: {1}", session.ConnectionId, session.RemoteEndPoint);
+            logger.LogInformation("SERVER {0}[{1}][{2}], ClientIp: {3}", "DISCONNECTED", session.ConnectionId, session.CloseCause, session.RemoteEndPoint);
             await ValueTask.CompletedTask;
         }
 
         public override async ValueTask OnError(IConnectionSession session, Exception ex)
         {
-            logger.LogError($"Client     Error: {session.ConnectionId}, {ex.Message}");
+            logger.LogError("SERVER Error: {0}, {1}", session.ConnectionId, ex.Message);
             await ValueTask.CompletedTask;
         }
 

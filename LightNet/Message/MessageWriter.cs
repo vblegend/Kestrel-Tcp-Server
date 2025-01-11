@@ -6,7 +6,7 @@ using System.Runtime.CompilerServices;
 
 namespace LightNet.Message
 {
-    public ref struct MessageWriter : IDisposable
+    public struct MessageWriter : IDisposable
     {
         public static readonly UInt16 Header = 0x4D47;
 

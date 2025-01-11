@@ -10,6 +10,11 @@ using System.Threading.Tasks;
 namespace LightNet.Message
 {
 
+    /// <summary>
+    /// 消息处理器抽象结构<br/>
+    /// 消息处理方法签名如下<br/>
+    /// public async ValueTask Process(XXXXXMessage message)
+    /// </summary>
     public interface IMessageProcessor
     {
 
@@ -37,7 +42,7 @@ namespace LightNet.Message
         /// 创建消息路由器并扫描processor内所有处理程序
         /// </summary>
         /// <param name="processor"></param>
-        public AsyncMessageRouter(ChannelReader<AbstractNetMessage> sourceChannel, IMessageProcessor processor, Boolean exitWaitProcessComplete)
+        public AsyncMessageRouter(IMessageProcessor processor, ChannelReader<AbstractNetMessage> sourceChannel, Boolean exitWaitProcessComplete = false)
         {
             this.ExitWaitProcessComplete = exitWaitProcessComplete;
             this.channelReader = sourceChannel;
@@ -79,7 +84,7 @@ namespace LightNet.Message
         private async void ProcessMessage(object? state)
         {
             var cancelToken = cancelCompletionSignal.Token;
-            AbstractNetMessage message;
+            AbstractNetMessage message = default;
             while (true)
             {
                 try
@@ -96,12 +101,12 @@ namespace LightNet.Message
                         message = await channelReader.ReadAsync(cancelToken);
                     }
                     await this.RouteAsync(message);
-                    message = null;
+                    message?.Return();
                 }
                 catch (Exception) { }
                 finally
                 {
-
+                    message?.Return();
                 }
             }
             cancelCompletionSignal.Complete();
@@ -132,7 +137,7 @@ namespace LightNet.Message
 
 
         /// <summary>
-        /// 分发消息，路由至指定处理器
+        /// 分发消息，路由至处理器处理方法
         /// </summary>
         /// <param name="session"></param>
         /// <param name="message"></param>

@@ -9,9 +9,15 @@ namespace LightNet.Internals
 {
     internal class MessageMakeInfo
     {
-        public Type Type;
-        public Int16 Kind;
-        public IntPtr FuncPointer;
+        public MessageMakeInfo(Type type, Int16 kind, IntPtr funcPointer)
+        {
+            this.Type = type;
+            this.Kind = kind;
+            this.FuncPointer = funcPointer;
+        }
+        public readonly Type Type;
+        public readonly Int16 Kind;
+        public readonly IntPtr FuncPointer;
     }
 
 
@@ -44,17 +50,12 @@ namespace LightNet.Internals
                 {
                     // 初始化 消息池属性
                     Type genericType = typeof(MFactory<>).MakeGenericType(type);
-                    var InitialFactory = genericType.GetMethod("InitialFactory", BindingFlags.Static | BindingFlags.NonPublic);
+                    var InitialFactory = genericType.GetMethod("InitialMessageType", BindingFlags.Static | BindingFlags.NonPublic);
                     var tryInit = (MFactoryInitialMethod)InitialFactory.CreateDelegate(typeof(MFactoryInitialMethod), null);
-                    tryInit(attribuute.Kind, attribuute.UsePool, attribuute.PoolCapacity);
+                    tryInit(attribuute);
                     var getmessageMethod = genericType.GetMethod("GetMessage", BindingFlags.Static | BindingFlags.Public);
                     IntPtr funcPointer = getmessageMethod.MethodHandle.GetFunctionPointer();
-                    InitializedTypes.Add(new MessageMakeInfo()
-                    {
-                        Type = type,
-                        Kind = attribuute.Kind,
-                        FuncPointer = funcPointer
-                    });
+                    InitializedTypes.Add(new MessageMakeInfo(type, attribuute.Kind, funcPointer));
                 }
             }
         }

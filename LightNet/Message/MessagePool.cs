@@ -34,7 +34,7 @@ namespace LightNet.Message
         /// <param name="releaseNow">是否立即释放多余的对象</param>
         public void SetPoolMaxCapacity(Int32 value, Boolean releaseNow)
         {
-            if (value < 0) throw new ArgumentOutOfRangeException("Parameter value must be greater than 0");
+            if (value < 0) value = Environment.ProcessorCount * 2;
             _maxCapacity = value;
             while (_numItems > _maxCapacity && releaseNow)
             {

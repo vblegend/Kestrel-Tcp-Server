@@ -43,7 +43,7 @@ namespace Examples.Services
                     Stopwatch stopwatch = Stopwatch.StartNew();
                     try
                     {
-                        for (int i = 0; !cancelToken.IsCancellationRequested && i < 100000; i++)
+                        for (int i = 0; !cancelToken.IsCancellationRequested && i < 10000; i++)
                         {
                             session?.Write(message);
                             count++;
@@ -82,21 +82,21 @@ namespace Examples.Services
         public async Task StopAsync(CancellationToken cancellationToken)
         {
             sendToken?.Cancel();
-            logger.LogInformation("TestService.StopAsync()");
             await Task.CompletedTask;
         }
 
         public override async ValueTask OnConnection(IConnectionSession session)
         {
             this.session = session;
-            logger.LogInformation("客户端成功连接至: {0}", applicationOptions.ClientUri);
+            logger.LogInformation("CLIENT {0} {1}", "JOIN", applicationOptions.ClientUri);
+
             await session.WriteFlushAsync(MessageFactory.ExampleMessage(251));
         }
 
         public override async ValueTask OnClose(IConnectionSession session)
         {
             this.session = null;
-            logger.LogInformation("客户端关闭, 原因：{0}", session.CloseCause);
+            logger.LogInformation("CLIENT {0} {1}", "LEAVE", applicationOptions.ClientUri);
             await ValueTask.CompletedTask;
         }
 
@@ -109,7 +109,6 @@ namespace Examples.Services
         public override void OnReceive(IConnectionSession session, AbstractNetMessage message)
         {
             message.Return();
-            logger.LogInformation("客户端收到消息。 {0}", message.Kind);
         }
     }
 }

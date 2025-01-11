@@ -4,7 +4,7 @@ using System.Runtime.CompilerServices;
 namespace LightNet.Message
 {
 
-    internal delegate void MFactoryInitialMethod(Int16 kind, Boolean usePool, Int32 poolCapacity);
+    internal delegate void MFactoryInitialMethod(MessageAttribute msgDefine);
 
 
     /// <summary>
@@ -24,7 +24,7 @@ namespace LightNet.Message
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static TMessage GetMessage()
         {
-            return _shared?.TryGet(CreateMessageRawInternal) ?? CreateMessageRawInternal();
+            return _shared?.TryGet(CreateRaw) ?? CreateRaw();
         }
 
         /// <summary>
@@ -37,7 +37,7 @@ namespace LightNet.Message
         /// </summary>
         /// <returns></returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public unsafe static TMessage CreateMessageRawInternal()
+        public unsafe static TMessage CreateRaw()
         {
             var msg = new TMessage();
             fixed (Int16* ptr = &msg.Kind) *ptr = Kind;
@@ -48,14 +48,20 @@ namespace LightNet.Message
         private static Boolean isInited = false;
 
 
-        internal unsafe static void InitialFactory(Int16 kind, Boolean usePool, Int32 poolCapacity)
+        internal unsafe static void InitialMessageType(MessageAttribute msgDefine)
         {
             if (isInited) return;
-            fixed (Int16* ptr = &Kind) *ptr = kind;
-            if (usePool)
+            fixed (Int16* ptr = &Kind) *ptr = msgDefine.Kind;
+            if (msgDefine.Pooling == PoolingOptions.Pooling)
             {
+                var poolCapacity = msgDefine.PoolCapacity;
                 if (poolCapacity < 0) poolCapacity = Environment.ProcessorCount * 2;
-                _shared = new MessagePool<TMessage>(CreateMessageRawInternal, poolCapacity);
+                _shared = new MessagePool<TMessage>(CreateRaw, poolCapacity);
+            }
+            else if (msgDefine.Pooling == PoolingOptions.Costom)
+            {
+                // ...
+
             }
             isInited = true;
         }
@@ -69,7 +75,7 @@ namespace LightNet.Message
         /// <param name="value">最大容量值</param>
         /// <param name="releaseNow">是否立即释放池子中多余的资源</param>
         /// <exception cref="Exception">消息对象必须使用MessageAttribute属性开启内存池</exception>
-        public static void SetPoolMaxCapacity(Int32 value, Boolean releaseNow)
+        public static void SetPoolMaxCapacity(Int32 value, Boolean releaseNow = true)
         {
             if (_shared == null)
             {

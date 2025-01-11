@@ -122,6 +122,13 @@ namespace LightNet.Network
                 _ = OnConnectedAsync(clientSocket, cancelToken);
                 if (cancelToken.IsCancellationRequested) return;
                 socket.BeginAccept(new AsyncCallback(HandleAccepted), cancelToken);
+                socket.BeginAccept(new AsyncCallback(HandleAccepted), cancelToken);
+                socket.BeginAccept(new AsyncCallback(HandleAccepted), cancelToken);
+                socket.BeginAccept(new AsyncCallback(HandleAccepted), cancelToken);
+                socket.BeginAccept(new AsyncCallback(HandleAccepted), cancelToken);
+
+
+
             }
             catch (ObjectDisposedException)
             {

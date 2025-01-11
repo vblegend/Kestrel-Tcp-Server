@@ -14,7 +14,7 @@ namespace Examples.Services
         public ChannelWriter<AbstractNetMessage> GetWriter => messageChannel.Writer;
         public GatewayMessageProcessService()
         {
-            msgRouter = new AsyncMessageRouter(messageChannel.Reader, this, true);
+            msgRouter = new AsyncMessageRouter(this, messageChannel.Reader);
         }
 
         public async Task StartAsync(CancellationToken cancellationToken)
