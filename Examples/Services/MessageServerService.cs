@@ -6,12 +6,12 @@ using System.Threading.Channels;
 
 namespace Examples.Services
 {
-    public class ServerService : MessageServer, IHostedService
+    public class MessageServerService : MessageServer, IHostedService
     {
-        private readonly ILogger<ServerService> logger;
+        private readonly ILogger<MessageServerService> logger;
         private readonly ApplicationOptions applicationOptions;
         private readonly ChannelWriter<AbstractNetMessage> channelWriter;
-        public ServerService(ILogger<ServerService> _logger, ClientProcessService _messageProcessor, ApplicationOptions applicationOptions)
+        public MessageServerService(ILogger<MessageServerService> _logger, ClientMessageProcessService _messageProcessor, ApplicationOptions applicationOptions)
             : base(MessageResolvers.CSResolver)
         {
             channelWriter = _messageProcessor.GetWriter;

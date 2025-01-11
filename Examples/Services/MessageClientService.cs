@@ -8,9 +8,9 @@ using System.Diagnostics;
 
 namespace Examples.Services
 {
-    public class ClientService : MessageClient, IHostedService
+    public class MessageClientService : MessageClient, IHostedService
     {
-        private readonly ILogger<ClientService> logger;
+        private readonly ILogger<MessageClientService> logger;
         private readonly ApplicationOptions applicationOptions;
         private CancellationTokenSource? sendToken;
         private IConnectionSession? session;
@@ -18,7 +18,7 @@ namespace Examples.Services
 
 
 
-        public ClientService(ILogger<ClientService> _logger, ApplicationOptions applicationOptions)
+        public MessageClientService(ILogger<MessageClientService> _logger, ApplicationOptions applicationOptions)
             : base(MessageResolvers.CSResolver)
         {
             logger = _logger;
@@ -83,6 +83,7 @@ namespace Examples.Services
         {
             sendToken?.Cancel();
             logger.LogInformation("TestService.StopAsync()");
+            await Task.CompletedTask;
         }
 
         public override async ValueTask OnConnection(IConnectionSession session)

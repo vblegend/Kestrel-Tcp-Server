@@ -73,24 +73,24 @@ namespace LightNet
             services.AddSingleton<TestService>();
             services.AddHostedService(provider => provider.GetRequiredService<TestService>());
 
-            services.AddSingleton<ClientProcessService>();
-            services.AddHostedService(provider => provider.GetRequiredService<ClientProcessService>());
+            services.AddSingleton<ClientMessageProcessService>();
+            services.AddHostedService(provider => provider.GetRequiredService<ClientMessageProcessService>());
 
-            services.AddSingleton<GatewayProcessService>();
-            services.AddHostedService(provider => provider.GetRequiredService<GatewayProcessService>());
+            services.AddSingleton<GatewayMessageProcessService>();
+            services.AddHostedService(provider => provider.GetRequiredService<GatewayMessageProcessService>());
 
 
 
             if (Environment.CommandLine.Contains("server"))
             {
-                services.AddSingleton<ServerService>();
-                services.AddHostedService(provider => provider.GetRequiredService<ServerService>());
+                services.AddSingleton<MessageServerService>();
+                services.AddHostedService(provider => provider.GetRequiredService<MessageServerService>());
             }
 
             if (Environment.CommandLine.Contains("client"))
             {
-                services.AddSingleton<ClientService>();
-                services.AddHostedService(provider => provider.GetRequiredService<ClientService>());
+                services.AddSingleton<MessageClientService>();
+                services.AddHostedService(provider => provider.GetRequiredService<MessageClientService>());
             }
         }
 

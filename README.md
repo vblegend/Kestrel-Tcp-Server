@@ -5,8 +5,8 @@
 
 
 
-功能
---------------
+## 功能
+
 - [x] TCP服务器 (TCPServer)
 - [x] TCP客户端 (TCPClient)
 - [x] 管道服务器 (PipeServer)
@@ -17,10 +17,17 @@
 - [x] 消息路由
 
 
+--------------
 
+## 测试
 
+``` bash
+Examples.exe server
 
+Examples.exe client
+Examples.exe client
+```
 
-
+--------------
 
 

@@ -13,8 +13,8 @@ namespace Examples.Services
     public class TestService : IHostedService
     {
         private readonly ILogger logger;
-        private readonly ClientProcessService messageProcessor;
-        public TestService(ILogger<ClientService> _logger, TimeService timeService)
+
+        public TestService(ILogger<MessageClientService> _logger, TimeService timeService)
         {
             logger = _logger;
             SnowflakeId.UtcNowFunc = timeService.UtcNow;
@@ -71,7 +71,7 @@ namespace Examples.Services
             //  消息分发测试
             // ==========================================================================================
             Channel<AbstractNetMessage> messageChannel = Channel.CreateUnbounded<AbstractNetMessage>(new UnboundedChannelOptions() { SingleReader = true, SingleWriter = true });
-            var processor = new ClientProcessService();
+            var processor = new ClientMessageProcessService();
             var msgRouter = new AsyncMessageRouter(messageChannel.Reader, processor, true);
             var obj = MFactory<ClientMessage>.GetMessage();
             stopwatch = Stopwatch.StartNew();

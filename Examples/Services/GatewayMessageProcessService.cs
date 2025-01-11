@@ -1,26 +1,24 @@
-﻿using Examples.Client;
+﻿using Examples.Gateway;
 using LightNet;
 using LightNet.Message;
 using System.Threading.Channels;
 
 namespace Examples.Services
 {
-    public class ClientProcessService : IMessageProcessor, IHostedService
+    public class GatewayMessageProcessService : IMessageProcessor, IHostedService
     {
-        public long count = 0;
 
-        private readonly ILogger<ClientProcessService> logger = LoggerProvider.CreateLogger<ClientProcessService>();
+        private readonly ILogger<ClientMessageProcessService> logger = LoggerProvider.CreateLogger<ClientMessageProcessService>();
         private readonly Channel<AbstractNetMessage> messageChannel = Channel.CreateUnbounded<AbstractNetMessage>(new UnboundedChannelOptions() { SingleReader = true, SingleWriter = true });
-        private AsyncMessageRouter msgRouter;
+        private readonly AsyncMessageRouter msgRouter;
         public ChannelWriter<AbstractNetMessage> GetWriter => messageChannel.Writer;
-        public ClientProcessService()
+        public GatewayMessageProcessService()
         {
-
+            msgRouter = new AsyncMessageRouter(messageChannel.Reader, this, true);
         }
 
         public async Task StartAsync(CancellationToken cancellationToken)
         {
-            msgRouter = new AsyncMessageRouter(messageChannel.Reader, this, true);
             await msgRouter.StartAsync(cancellationToken);
         }
 
@@ -29,30 +27,26 @@ namespace Examples.Services
             await msgRouter.StopAsync(cancellationToken);
         }
 
-
-
-
-
-
-
-
         /// <summary>
-        /// 
+        /// 处理网关ping消息
         /// </summary>
         /// <param name="message"></param>
         /// <returns></returns>
-        public async ValueTask Process(ClientMessage message)
+        public async ValueTask Process(GatewayPingMessage message)
         {
-            count++;
-            //await session.WriteFlushAsync(MessageFactory.ExampleMessage(count));
-            if (count % 1000000 == 0)
-            {
-                logger.LogInformation("Received packet: {0}", count);
-            }
             await ValueTask.CompletedTask;
         }
 
 
+        /// <summary>
+        /// 处理网关pong消息
+        /// </summary>
+        /// <param name="message"></param>
+        /// <returns></returns>
+        public async ValueTask Process(GatewayPongMessage message)
+        {
+            await ValueTask.CompletedTask;
+        }
 
 
     }

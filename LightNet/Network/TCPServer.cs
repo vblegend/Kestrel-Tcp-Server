@@ -158,6 +158,8 @@ namespace LightNet.Network
             Int32 minimumReadSize = 1;
             try
             {
+                socket.ReceiveBufferSize = this.ReceiveBufferSize;
+                socket.SendBufferSize = this.SendBufferSize;
                 Interlocked.Increment(ref _currentConnectionCounter);
                 // 连接数限制
                 if (_currentConnectionCounter > _maximumConnectionLimit) return;
