@@ -2,6 +2,7 @@
 using LightNet.Message;
 using LightNet.Network;
 using LightNet.Pipes;
+using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Buffers;
@@ -18,6 +19,7 @@ namespace LightNet
         private readonly ILogger<TCPServer> logger = LoggerProvider.CreateLogger<TCPServer>();
         private IPacketServer _packetServer;
         public readonly MessageResolver messageResolver;
+        private string authorization;
 
         protected MessageServer(MessageResolver resolver)
         {
@@ -50,6 +52,11 @@ namespace LightNet
                 default:
                     throw new ArgumentNullException("uri");
             }
+            var querys = QueryHelpers.ParseQuery(uri.Query);
+            if (querys.TryGetValue("pwd", out var pwd))
+            {
+                this.authorization = pwd;
+            }
             _packetServer.SetAdapter(this);
             _packetServer.Listen(uri);
         }
@@ -71,6 +78,7 @@ namespace LightNet
                 if (result == ParseResult.Ok)
                 {
                     message.Session = session;
+                    // 
                     OnReceive(session, message);
                 }
                 else if (result == ParseResult.Partial)
