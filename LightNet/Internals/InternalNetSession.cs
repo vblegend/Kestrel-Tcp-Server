@@ -27,7 +27,7 @@ namespace LightNet.Internals
             CloseCause = cause;
         }
 
-
+        public IntPtr UserData { get; set; }
         internal void Init(NetworkStream networkStream, Int32 writeBufferSize)
         {
             _socket = networkStream.Socket;
@@ -63,25 +63,28 @@ namespace LightNet.Internals
 
         public async ValueTask WriteAsync(ArraySegment<byte> buffer)
         {
-            if (writer != null)
+            var w = writer;
+            if (w != null)
             {
-                await writer.WriteAsync(buffer);
+                await w.WriteAsync(buffer);
             }
         }
 
         public async ValueTask WriteAsync(ReadOnlyMemory<byte> buffer)
         {
-            if (writer != null)
+            var w = writer;
+            if (w != null)
             {
-                await writer.WriteAsync(buffer);
+                await w.WriteAsync(buffer);
             }
         }
 
         public async ValueTask FlushAsync()
         {
-            if (writer != null)
+            var w = writer;
+            if (w != null)
             {
-                await writer.FlushAsync();
+                await w.FlushAsync();
             }
         }
     }

@@ -1,4 +1,5 @@
 ﻿using Examples.Client;
+using Examples.Gateway;
 using LightNet.Message;
 
 
@@ -18,6 +19,15 @@ namespace Examples
             msg.X = value;
             return msg;
         }
+
+
+        public static GatewayAuthRequestMessage GatewayAuthRequestMessage(String pwd)
+        {
+            var msg = MFactory<GatewayAuthRequestMessage>.GetMessage();
+            msg.Pwd = pwd;
+            return msg;
+        }
+
 
     }
 }

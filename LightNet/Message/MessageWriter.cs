@@ -10,7 +10,7 @@ namespace LightNet.Message
     {
         public static readonly UInt16 Header = 0x4D47;
 
-        private static MessageFlags[] KindFlags = [default, MessageFlags.None, MessageFlags.Flag2];
+        private static MessageFlags[] KindFlags = [default, MessageFlags.None, MessageFlags.Kind2];
 
         private IBufferWriter<byte> _writer;
 
@@ -61,7 +61,7 @@ namespace LightNet.Message
         public static Byte GetEffectiveBytes(Int16 number)
         {
             if (number == 0) return 1; // 0 使用1字节
-            int absValue = Math.Abs(number);
+            int absValue = Math.Abs((Int32)number);
             if ((absValue & 0xFF00) == 0) return 1; // 1 字节
             return 2; // 4 字节
         }

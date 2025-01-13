@@ -7,7 +7,7 @@ namespace Examples.Services
 {
     public class GatewayMessageProcessService : IMessageProcessor, IHostedService
     {
-
+        public long count = 0;
         private readonly ILogger<ClientMessageProcessService> logger = LoggerProvider.CreateLogger<ClientMessageProcessService>();
         private readonly Channel<AbstractNetMessage> messageChannel = Channel.CreateUnbounded<AbstractNetMessage>(new UnboundedChannelOptions() { SingleReader = true, SingleWriter = true });
         private readonly AsyncMessageRouter msgRouter;
@@ -34,6 +34,11 @@ namespace Examples.Services
         /// <returns></returns>
         public async ValueTask Process(GatewayPingMessage message)
         {
+            count++;
+            if (count % 1000000 == 0)
+            {
+                logger.LogInformation("Received packet: {0}", count);
+            }
             await ValueTask.CompletedTask;
         }
 
@@ -45,6 +50,11 @@ namespace Examples.Services
         /// <returns></returns>
         public async ValueTask Process(GatewayPongMessage message)
         {
+            count++;
+            if (count % 1000000 == 0)
+            {
+                logger.LogInformation("Received packet: {0}", count);
+            }
             await ValueTask.CompletedTask;
         }
 

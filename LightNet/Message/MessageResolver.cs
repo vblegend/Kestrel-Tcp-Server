@@ -67,8 +67,29 @@ namespace LightNet.Message
                 delegate*<AbstractNetMessage> getter = (delegate*<AbstractNetMessage>)p;
                 return getter();
             }
-            throw new InvalidOperationException();
+            throw new InvalidOperationException($"MessageResolver: Resolver cannot find message bound to Kind[{kind}].");
         }
+
+
+        public Boolean TryAddType<TMessage>()
+        {
+            return TryAddType(typeof(TMessage));
+        }
+
+
+        public Boolean TryAddType(Type type)
+        {
+            var list = MessageLoader.InitializedTypes.ToArray();
+            var first = list.Where(e => e.Type == type).FirstOrDefault();
+            if (first == null) return false;
+            if (Keys.TryGetValue(first.Kind, out var sss))
+            {
+                return sss == first.FuncPointer;
+            }
+            Keys.Add(first.Kind, first.FuncPointer);
+            return true;
+        }
+
 
 
         /// <summary>

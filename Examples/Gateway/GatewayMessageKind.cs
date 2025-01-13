@@ -16,5 +16,19 @@ namespace Examples.Gateway
         [Kind]
         public const Int16 Pong = 999;
 
+
+
+
+        /// <summary>
+        /// 登录验证结果
+        /// </summary>
+        [Kind]
+        public const Int16 AuthResponse = 32766;
+
+        /// <summary>
+        /// 登录验证
+        /// </summary>
+        [Kind]
+        public const Int16 AuthRequest = 32767;
     }
 }

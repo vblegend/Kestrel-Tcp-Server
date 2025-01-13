@@ -37,15 +37,20 @@ namespace LightNet
 
 
         /// <summary>
+        /// 非法操作
+        /// </summary>
+        ILLEGAL_OPERATOR = 5,
+
+        /// <summary>
         /// 错误
         /// </summary>
-        ERROR = 5,
+        ERROR = 6,
 
 
         /// <summary>
         /// 连接被拒绝
         /// </summary>
-        CONNECTION_DENIAL = 6
+        CONNECTION_DENIAL = 7
 
     }
 
@@ -78,6 +83,8 @@ namespace LightNet
         /// 用户自定义数据
         /// </summary>
         public object[] Datas { get; }
+
+        public IntPtr UserData { get; set; }
 
         /// <summary>
         /// 客户端连接的时间戳

@@ -19,13 +19,25 @@ namespace LightNet
         private readonly ILogger<TCPServer> logger = LoggerProvider.CreateLogger<TCPServer>();
         private IPacketServer _packetServer;
         public readonly MessageResolver messageResolver;
-        private string authorization;
+
+        private MessageMiddleware[] middlewares = [];
 
         protected MessageServer(MessageResolver resolver)
         {
             messageResolver = resolver;
         }
 
+
+        /// <summary>
+        /// 注册中间件
+        /// </summary>
+        public void Use(MessageMiddleware middleware)
+        {
+            var newMiddlewares = new MessageMiddleware[middlewares.Length +1];
+            Array.Copy(middlewares, newMiddlewares, middlewares.Length);
+            newMiddlewares[middlewares.Length] = middleware;
+            middlewares = newMiddlewares;
+        }
 
 
         /// <summary>
@@ -52,11 +64,6 @@ namespace LightNet
                 default:
                     throw new ArgumentNullException("uri");
             }
-            var querys = QueryHelpers.ParseQuery(uri.Query);
-            if (querys.TryGetValue("pwd", out var pwd))
-            {
-                this.authorization = pwd;
-            }
             _packetServer.SetAdapter(this);
             _packetServer.Listen(uri);
         }
@@ -78,7 +85,11 @@ namespace LightNet
                 if (result == ParseResult.Ok)
                 {
                     message.Session = session;
-                    // 
+                    for (int i = 0; i < middlewares.Length; i++)
+                    {
+                        Boolean r = middlewares[i].OnMessage(session, message);
+                        if (!r) break;
+                    }
                     OnReceive(session, message);
                 }
                 else if (result == ParseResult.Partial)

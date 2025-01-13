@@ -76,15 +76,15 @@ namespace LightNet
             services.AddSingleton<ClientMessageProcessService>();
             services.AddHostedService(provider => provider.GetRequiredService<ClientMessageProcessService>());
 
-            //services.AddSingleton<GatewayMessageProcessService>();
-            //services.AddHostedService(provider => provider.GetRequiredService<GatewayMessageProcessService>());
+            services.AddSingleton<GatewayMessageProcessService>();
+            services.AddHostedService(provider => provider.GetRequiredService<GatewayMessageProcessService>());
 
 
 
             if (Environment.CommandLine.Contains("server"))
             {
-                services.AddSingleton<MessageServerService>();
-                services.AddHostedService(provider => provider.GetRequiredService<MessageServerService>());
+                services.AddSingleton<GatewayServerService>();
+                services.AddHostedService(provider => provider.GetRequiredService<GatewayServerService>());
             }
 
             if (Environment.CommandLine.Contains("client"))

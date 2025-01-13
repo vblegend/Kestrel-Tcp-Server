@@ -1,4 +1,5 @@
 ﻿using Examples.Client;
+using Examples.Gateway;
 using LightNet;
 using LightNet.Message;
 using LightNet.Pipes;
@@ -19,7 +20,7 @@ namespace Examples.Services
 
 
         public MessageClientService(ILogger<MessageClientService> _logger, ApplicationOptions applicationOptions)
-            : base(MessageResolvers.CSResolver)
+            : base(MessageResolvers.GatewayResolver)
         {
             logger = _logger;
             sendToken = null;
@@ -32,10 +33,8 @@ namespace Examples.Services
             CancellationTokenSource cancelToken = new CancellationTokenSource();
             ThreadPool.QueueUserWorkItem(async (e) =>
             {
-                var message = MessageFactory.Create<ClientMessage>();
+                var message = MessageFactory.Create<GatewayPingMessage>();
                 message.X = 19201080;
-
-                var s = this.packetClient as PipeClient;
 
                 int count = 0;
                 while (!cancelToken.IsCancellationRequested && session != null)
@@ -75,6 +74,9 @@ namespace Examples.Services
         public async Task StartAsync(CancellationToken cancellationToken)
         {
             await ConnectAsync(applicationOptions.ClientUri, cancellationToken);
+            var response = await this.Login("123456");
+            logger.LogInformation("CLIENT {0}, CODE = {1}", "身份验证成功", response.Code);
+
             sendToken = StartSendMessage();
             await Task.CompletedTask;
         }
@@ -90,12 +92,13 @@ namespace Examples.Services
             this.session = session;
             logger.LogInformation("CLIENT {0} {1}", "JOIN", applicationOptions.ClientUri);
 
-            await session.WriteFlushAsync(MessageFactory.ExampleMessage(251));
+            //await session.WriteFlushAsync(MessageFactory.ExampleMessage(251));
         }
 
         public override async ValueTask OnClose(IConnectionSession session)
         {
             this.session = null;
+            if (authCompleted != null) authCompleted.SetException(new Exception("验证失败"));
             logger.LogInformation("CLIENT {0} {1}", "LEAVE", applicationOptions.ClientUri);
             await ValueTask.CompletedTask;
         }
@@ -108,7 +111,25 @@ namespace Examples.Services
 
         public override void OnReceive(IConnectionSession session, AbstractNetMessage message)
         {
+            if (authCompleted != null && message.Kind == GatewayMessageKind.AuthResponse)
+            {
+                authCompleted.SetResult((GatewayAuthResponseMessage)message);
+                return;
+            }
             message.Return();
+
         }
+
+
+        private TaskCompletionSource<GatewayAuthResponseMessage> authCompleted;
+
+
+        public async Task<GatewayAuthResponseMessage> Login(String pwd)
+        {
+            authCompleted = new TaskCompletionSource<GatewayAuthResponseMessage>(TaskCreationOptions.RunContinuationsAsynchronously);
+            await this.session.WriteFlushAsync(MessageFactory.GatewayAuthRequestMessage(pwd));
+            return await authCompleted.Task;
+        }
+
     }
 }

@@ -9,13 +9,13 @@ using System.Threading.Channels;
 
 namespace Examples.Services
 {
-    public class MessageServerService : MessageServer, IHostedService
+    public class GatewayServerService : MessageServer, IHostedService
     {
         private readonly ILogger<MessageServerService> logger;
         private readonly ApplicationOptions applicationOptions;
         private readonly ChannelWriter<AbstractNetMessage> channelWriter;
-        public MessageServerService(ILogger<MessageServerService> _logger, ClientMessageProcessService _messageProcessor, ApplicationOptions applicationOptions)
-            : base(MessageResolvers.CSResolver)
+        public GatewayServerService(ILogger<MessageServerService> _logger, GatewayMessageProcessService _messageProcessor, ApplicationOptions applicationOptions)
+            : base(MessageResolvers.GatewayResolver)
         {
             channelWriter = _messageProcessor.GetWriter;
             this.applicationOptions = applicationOptions;
@@ -47,17 +47,8 @@ namespace Examples.Services
 
         public override async ValueTask<bool> OnConnected(IConnectionSession session)
         {
-            //if (connection.RemoteEndPoint is IPEndPoint ipEndPoint)
-            //{
-            //    if (this.iPBlacklist.IsBlocked(ipEndPoint.Address))
-            //    {
-            //        logger.LogInformation($"Blocked Client Connect: {ipEndPoint.Address}");
-            //        return false;
-            //    }
-            //}
-
             logger.LogInformation("SERVER {0}[{1}], ClientIp: {2}", "CONNECTED" ,session.ConnectionId, session.RemoteEndPoint);
-            await session.WriteFlushAsync(MessageFactory.Create<ClientMessage>());
+            //await session.WriteFlushAsync(MessageFactory.Create<ClientMessage>());
             return true;
         }
 

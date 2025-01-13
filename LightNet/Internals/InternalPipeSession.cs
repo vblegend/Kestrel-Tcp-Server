@@ -23,6 +23,7 @@ namespace LightNet.Internals
 
         public bool IsConnected => stream.IsConnected;
 
+        public IntPtr UserData { get; set; }
         public void Close(SessionShutdownCause cause)
         {
             stream?.Close();
@@ -69,25 +70,28 @@ namespace LightNet.Internals
 
         public async ValueTask WriteAsync(ArraySegment<byte> buffer)
         {
-            if (writer != null)
+            var w = writer;
+            if (w != null)
             {
-                await writer.WriteAsync(buffer);
+                await w.WriteAsync(buffer);
             }
         }
 
         public async ValueTask WriteAsync(ReadOnlyMemory<byte> buffer)
         {
-            if (writer != null)
+            var w = writer;
+            if (w != null)
             {
-                await writer.WriteAsync(buffer);
+                await w.WriteAsync(buffer);
             }
         }
 
         public async ValueTask FlushAsync()
         {
-            if (writer != null)
+            var w = writer;
+            if (w != null)
             {
-                await writer.FlushAsync();
+                await w.FlushAsync();
             }
         }
     }
