@@ -6,6 +6,8 @@ using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Buffers;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 
 
@@ -21,22 +23,12 @@ namespace LightNet
         public readonly MessageResolver messageResolver;
 
         private MessageMiddleware[] middlewares = [];
+        public readonly List<MessageMiddleware> Middlewares = new List<MessageMiddleware>();
+
 
         protected MessageServer(MessageResolver resolver)
         {
             messageResolver = resolver;
-        }
-
-
-        /// <summary>
-        /// 注册中间件
-        /// </summary>
-        public void Use(MessageMiddleware middleware)
-        {
-            var newMiddlewares = new MessageMiddleware[middlewares.Length +1];
-            Array.Copy(middlewares, newMiddlewares, middlewares.Length);
-            newMiddlewares[middlewares.Length] = middleware;
-            middlewares = newMiddlewares;
         }
 
 
@@ -64,6 +56,9 @@ namespace LightNet
                 default:
                     throw new ArgumentNullException("uri");
             }
+
+
+            middlewares = Middlewares.Concat([ /* this */]).ToArray();
             _packetServer.SetAdapter(this);
             _packetServer.Listen(uri);
         }
@@ -85,12 +80,18 @@ namespace LightNet
                 if (result == ParseResult.Ok)
                 {
                     message.Session = session;
+                    Boolean passed = true;
                     for (int i = 0; i < middlewares.Length; i++)
                     {
-                        Boolean r = middlewares[i].OnMessage(session, message);
-                        if (!r) break;
+                        if (!middlewares[i].OnMessage(session, message))
+                        {
+                            passed = false;
+                            if (!session.IsConnected) return UnPacketResult.Invalid;
+                            break;
+                        }
                     }
-                    OnReceive(session, message);
+                    // be remove and put this in middlewares
+                    if (passed) OnReceive(session, message);
                 }
                 else if (result == ParseResult.Partial)
                 {

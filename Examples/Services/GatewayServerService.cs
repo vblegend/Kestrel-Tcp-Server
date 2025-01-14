@@ -29,7 +29,7 @@ namespace Examples.Services
             var querys = QueryHelpers.ParseQuery(applicationOptions.ServerUri.Query);
             if (querys.TryGetValue("pwd", out var pwd))
             {
-                Use(new GatewayAuthMiddleware(pwd.ToString()));
+                this.Middlewares.Add(new GatewayAuthMiddleware(pwd.ToString()));
                 logger.LogInformation("MessageServer Use AuthMiddleware [ authorization: {0} ]", pwd);
             }
 

@@ -30,6 +30,10 @@ namespace LightNet.Adapters
     /// </summary>
     public readonly struct UnPacketResult
     {
+        public static readonly UnPacketResult Invalid = new UnPacketResult(0,0);
+
+
+
         /// <summary>
         /// 构造一个封包读取结果，给出已读数据长度和下次读取长度
         /// </summary>
