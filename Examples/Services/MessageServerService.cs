@@ -1,7 +1,7 @@
 ﻿using Examples.Client;
+using Examples.Middleware;
 using Light.Message;
 using Light.Transmit;
-using Light.Transmit.Message.Secure;
 using System.Buffers;
 using System.Threading.Channels;
 

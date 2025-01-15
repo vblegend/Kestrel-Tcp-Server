@@ -1,6 +1,7 @@
-﻿using Light.Message;
+﻿using Examples.Middleware;
+using Light.Message;
 using Light.Transmit;
-using Light.Transmit.Message.Secure;
+
 using System.Threading.Channels;
 
 namespace Examples.Services

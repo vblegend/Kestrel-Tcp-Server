@@ -111,21 +111,18 @@ namespace Light.Transmit.Network
             logger.LogDebug("Listen TCP Server: {0}:{1}", localAddress, localPort);
         }
 
-        private void HandleAccepted(IAsyncResult result)
+        private async void HandleAccepted(IAsyncResult result)
         {
             try
             {
                 var cancelToken = (CancellationToken)result.AsyncState;
                 if (cancelToken.IsCancellationRequested) return;
                 Socket clientSocket = socket.EndAccept(result);
-                _ = OnConnectedAsync(clientSocket, cancelToken);
+                _ = Task.Run(() => OnConnectedAsync(clientSocket, cancelToken));
                 if (cancelToken.IsCancellationRequested) return;
                 socket.BeginAccept(new AsyncCallback(HandleAccepted), cancelToken);
-                socket.BeginAccept(new AsyncCallback(HandleAccepted), cancelToken);
-                socket.BeginAccept(new AsyncCallback(HandleAccepted), cancelToken);
-                socket.BeginAccept(new AsyncCallback(HandleAccepted), cancelToken);
-                socket.BeginAccept(new AsyncCallback(HandleAccepted), cancelToken);
 
+               await socket.AcceptAsync();
 
 
             }

@@ -17,6 +17,8 @@ namespace Light.Transmit.Network
             this.SendBufferSize = DEFAULT_SEND_BUFFER_SIZE;
             this.ReceiveBufferSize = DEFAULT_RECEIVE_BUFFER_SIZE;
             this.NoDelay = true;
+            this.socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
+
         }
 
 

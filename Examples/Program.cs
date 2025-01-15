@@ -3,6 +3,7 @@ using Examples;
 using Examples.Client;
 using Examples.Services;
 using Light.Message;
+using Light.Transmit.Network;
 using Serilog;
 using Serilog.Core;
 using Serilog.Extensions.Logging;
@@ -41,11 +42,16 @@ namespace Light.Transmit
             // 动态调整 禁用内存池
             //MFactory<ClientMessage>.SetPoolMaxCapacity(0);
 
+            var pts = new HighPerformanceTcpServer();
+
+            pts.Start("0.0.0.0", 22222);
+            Console.ReadLine();
+
 
             var host = CreateHostBuilder(args).Build();
             await host.RunAsync();
             host.Dispose();
-            Console.ReadLine();
+       
         }
 
 
