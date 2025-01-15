@@ -18,7 +18,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\LightNet\LightNet.csproj" />
+    <ProjectReference Include="..\Light.Message\Light.Message.csproj" />
+    <ProjectReference Include="..\Light.Transmit\Light.Transmit.csproj" />
   </ItemGroup>
 
   <ItemGroup>

@@ -1,6 +1,6 @@
 ﻿using Examples.Client;
 using Examples.Gateway;
-using LightNet.Message;
+using Light.Message;
 
 
 namespace Examples

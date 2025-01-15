@@ -2,12 +2,12 @@
 using Examples;
 using Examples.Client;
 using Examples.Services;
-using LightNet.Message;
+using Light.Message;
 using Serilog;
 using Serilog.Core;
 using Serilog.Extensions.Logging;
 
-namespace LightNet
+namespace Light.Transmit
 {
 
 

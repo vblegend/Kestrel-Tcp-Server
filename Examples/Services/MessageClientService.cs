@@ -1,8 +1,6 @@
-﻿using Examples.Client;
-using Examples.Gateway;
-using LightNet;
-using LightNet.Message;
-using LightNet.Pipes;
+﻿using Examples.Gateway;
+using Light.Message;
+using Light.Transmit;
 using System.Buffers;
 using System.Diagnostics;
 

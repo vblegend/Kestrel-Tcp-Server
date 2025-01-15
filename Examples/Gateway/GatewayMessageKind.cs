@@ -1,4 +1,4 @@
-﻿using LightNet.Message;
+﻿using Light.Message;
 
 namespace Examples.Gateway
 {

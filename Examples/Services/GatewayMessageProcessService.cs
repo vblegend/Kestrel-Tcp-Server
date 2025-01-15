@@ -1,6 +1,6 @@
 ﻿using Examples.Gateway;
-using LightNet;
-using LightNet.Message;
+using Light.Message;
+using Light.Transmit;
 using System.Threading.Channels;
 
 namespace Examples.Services

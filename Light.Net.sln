@@ -5,7 +5,7 @@ VisualStudioVersion = 17.12.35527.113
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Examples", "Examples\Examples.csproj", "{9AFE7DAE-B043-4A86-AAA7-172049314973}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LightNet", "LightNet\LightNet.csproj", "{65F20025-614D-4D81-A7B8-8F82D3576139}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Light.Transmit", "Light.Transmit\Light.Transmit.csproj", "{65F20025-614D-4D81-A7B8-8F82D3576139}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Document", "Document", "{1F39E2BD-A9E5-4BBE-AAA5-95372472D620}"
 	ProjectSection(SolutionItems) = preProject
@@ -13,6 +13,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Document", "Document", "{1F
 		LICENSE = LICENSE
 		README.md = README.md
 	EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Light.Message", "Light.Message\Light.Message.csproj", "{609D1825-DC99-470C-860F-E1FD9BEAFC52}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -28,6 +30,10 @@ Global
 		{65F20025-614D-4D81-A7B8-8F82D3576139}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{65F20025-614D-4D81-A7B8-8F82D3576139}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{65F20025-614D-4D81-A7B8-8F82D3576139}.Release|Any CPU.Build.0 = Release|Any CPU
+		{609D1825-DC99-470C-860F-E1FD9BEAFC52}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{609D1825-DC99-470C-860F-E1FD9BEAFC52}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{609D1825-DC99-470C-860F-E1FD9BEAFC52}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{609D1825-DC99-470C-860F-E1FD9BEAFC52}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

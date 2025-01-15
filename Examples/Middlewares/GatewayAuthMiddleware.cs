@@ -1,9 +1,9 @@
 ﻿using Examples.Gateway;
-using System;
+using Light.Message;
 using System.Buffers;
 
 
-namespace LightNet.Message.Secure
+namespace Light.Transmit.Message.Secure
 {
     internal class GatewayAuthMiddleware : MessageMiddleware
     {

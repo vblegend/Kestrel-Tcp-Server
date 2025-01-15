@@ -1,12 +1,10 @@
 ﻿using Examples.Client;
-using LightNet;
-using LightNet.Extensions;
-using LightNet.Message;
-using LightNet.Pools;
-using Microsoft.Extensions.Logging;
+using Light.Message;
+using Light.Message.Pools;
+using Light.Transmit;
+using Light.Transmit.Extensions;
 using System.Buffers;
 using System.Diagnostics;
-using System.Threading.Channels;
 
 namespace Examples.Services
 {

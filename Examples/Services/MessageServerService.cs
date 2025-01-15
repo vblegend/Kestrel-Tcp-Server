@@ -1,9 +1,7 @@
 ﻿using Examples.Client;
-using LightNet;
-using LightNet.Message;
-using LightNet.Message.Secure;
-using Microsoft.AspNetCore.WebUtilities;
-using System;
+using Light.Message;
+using Light.Transmit;
+using Light.Transmit.Message.Secure;
 using System.Buffers;
 using System.Threading.Channels;
 
@@ -26,7 +24,7 @@ namespace Examples.Services
 
         public async Task StartAsync(CancellationToken cancellationToken)
         {
-            var querys = QueryHelpers.ParseQuery(applicationOptions.ServerUri.Query);
+            var querys = applicationOptions.ServerUri.ParseQuery();
             if (querys.TryGetValue("pwd", out var pwd))
             {
                 this.Middlewares.Add(new GatewayAuthMiddleware(pwd.ToString()));
@@ -56,7 +54,7 @@ namespace Examples.Services
             //    }
             //}
 
-            logger.LogInformation("SERVER {0}[{1}], ClientIp: {2}", "CONNECTED" ,session.ConnectionId, session.RemoteEndPoint);
+            logger.LogInformation("SERVER {0}[{1}], ClientIp: {2}", "CONNECTED", session.ConnectionId, session.RemoteEndPoint);
             await session.WriteFlushAsync(MessageFactory.Create<ClientMessage>());
             return true;
         }
