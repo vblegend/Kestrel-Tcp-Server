@@ -104,7 +104,8 @@ namespace Light.Message
             message = default;
             readLength = 0;
             reader.TryRead<ushort>(out var header);
-            if (header != AbstractNetMessage.Header) return ParseResult.Illicit;
+            if (header != AbstractNetMessage.Header) 
+                return ParseResult.Illicit;
             reader.TryRead<MessageFlags>(out var flags);
             reader.TryRead<UInt16>(out readLength);
             if (reader.Remaining < readLength - 5) return ParseResult.Partial;

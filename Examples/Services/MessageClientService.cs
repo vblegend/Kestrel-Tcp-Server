@@ -48,7 +48,7 @@ namespace Examples.Services
                         if (session != null && !cancelToken.IsCancellationRequested) await session.FlushAsync();
                         if (count % 1000000 == 0)
                         {
-                            logger.LogInformation("Send Message {0}", count);
+                            //logger.LogInformation("Send Message {0}", count);
                         }
                     }
                     catch (Exception ex)

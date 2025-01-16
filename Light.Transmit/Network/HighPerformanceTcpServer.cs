@@ -1,28 +1,21 @@
 ﻿using Light.Transmit.Adapters;
 using Light.Transmit.Internals;
 using Light.Transmit.Pools;
-using Microsoft.Extensions.Logging;
 using System;
 using System.Buffers;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.IO.Pipelines;
 using System.Net;
 using System.Net.Sockets;
-using System.Reflection.PortableExecutable;
 using System.Text;
-using System.Threading;
 using System.Threading.Tasks;
-using static System.Collections.Specialized.BitVector32;
 
 
 
 
 namespace Light.Transmit.Network
 {
-    public class HighPerformanceTcpServer : IPacketServer
+    public class HighPerformanceTcpServer : IPV4Socket, IPacketServer
     {
-        private Socket listenerSocket;
         private ConcurrentBag<SocketAsyncEventArgs> argsPool;
         private const int BufferSize = 1024;
         private const int MaxConnections = 100;
@@ -30,6 +23,9 @@ namespace Light.Transmit.Network
         private readonly ObjectPool<SocketAsyncEventArgs> writePool;
         private readonly ObjectPool<SocketAsyncEventArgs> readArgsPool;
         private ServerHandlerAdapter handlerAdapter = null;
+        private Int32 receiveBufferSize = 8192;
+        private Int32 sendBufferSize = 8192;
+
 
         private SocketAsyncEventArgs CreateSocketAsyncEventArgs()
         {
@@ -41,7 +37,7 @@ namespace Light.Transmit.Network
         private SocketAsyncEventArgs CreateReadEventArgs()
         {
             var args = new SocketAsyncEventArgs();
-            args.SetBuffer(new byte[5000], 0, 5000);
+            args.SetBuffer(new byte[8192000], 0, 8192000);
             args.Completed += IO_Completed;
             return args;
         }
@@ -67,7 +63,7 @@ namespace Light.Transmit.Network
             // 重置
             acceptArgs.AcceptSocket = null;
             // 异步接受连接
-            if (!listenerSocket.AcceptAsync(acceptArgs)) ProcessAccept(acceptArgs);
+            if (!socket.AcceptAsync(acceptArgs)) ProcessAccept(acceptArgs);
         }
 
 
@@ -79,6 +75,9 @@ namespace Light.Transmit.Network
                 SocketAsyncEventArgs readArgs = readArgsPool.Get();
                 Console.WriteLine("Join");
                 readArgs.AcceptSocket = clientSocket;
+                clientSocket.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.NoDelay, true);
+                clientSocket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.SendBuffer, sendBufferSize);
+                clientSocket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReceiveBuffer, receiveBufferSize);
 
                 var session = new InternalNetSession();
                 //session.ConnectionId = Interlocked.Increment(ref ConnectionIdSource);
@@ -89,7 +88,8 @@ namespace Light.Transmit.Network
                 //
                 // OnConnection()
                 //
-                if (!clientSocket.ReceiveAsync(readArgs)) ProcessReceive(readArgs);
+                if (!clientSocket.ReceiveAsync(readArgs))
+                    ProcessReceive(readArgs);
             }
             // 继续接受下一个连接
             StartAccept(acceptArgs);
@@ -107,57 +107,63 @@ namespace Light.Transmit.Network
                     break;
             }
         }
-
         private unsafe void ProcessReceive(SocketAsyncEventArgs eventArgs)
         {
             Socket clientSocket = eventArgs.AcceptSocket;
             InternalNetSession session = eventArgs.UserToken as InternalNetSession;
-            if (eventArgs.BytesTransferred > 0 && eventArgs.SocketError == SocketError.Success)
+
+            do
             {
-                // 接收数据
-                ReadOnlySequence<Byte> readOnlyMemories = new ReadOnlySequence<byte>(eventArgs.Buffer, 0, eventArgs.Offset + eventArgs.BytesTransferred);
-
-                var RESULT = handlerAdapter.OnPacket(session, readOnlyMemories);
-
-                if (RESULT.ReadLength == eventArgs.Buffer.Length)
+                try
                 {
-                    eventArgs.SetBuffer(0, eventArgs.Buffer.Length);
+                    if (eventArgs.BytesTransferred > 0 && eventArgs.SocketError == SocketError.Success)
+                    {
+                        var length = eventArgs.Offset + eventArgs.BytesTransferred;
+                        // 使用正确的参数来构造 ReadOnlySequence，确保不丢失粘包部分
+                        ReadOnlySequence<byte> readOnlyMemory = new ReadOnlySequence<byte>(eventArgs.Buffer, 0, length);
+
+                        // 处理数据包（handlerAdapter 会处理粘包和返回有效字节的数量）
+                        var result = handlerAdapter.OnPacket(session, readOnlyMemory);
+
+                        if (result.ReadLength < eventArgs.Buffer.Length)
+                        {
+                            // 处理剩余数据，将有效数据移到缓冲区的前面
+                            var buffer = eventArgs.MemoryBuffer;
+                            var remaining = length - result.ReadLength;
+
+                            // 将剩余数据复制到缓冲区的前面
+                            var source = buffer.Slice(result.ReadLength, remaining);
+                            var destination = buffer.Slice(0, remaining);
+                            source.CopyTo(destination);
+
+                            // 更新 eventArgs 的缓冲区和偏移量
+                            eventArgs.SetBuffer(remaining, eventArgs.Buffer.Length - remaining);  // 设置剩余数据长度
+                        }
+                        else
+                        {
+                            // 如果已读取完全部数据，则重置缓冲区
+                            eventArgs.SetBuffer(0, eventArgs.Buffer.Length);
+                        }
+                    }
+                    else
+                    {
+                        // 连接关闭或发生错误，关闭连接
+                        CloseClientSocket(eventArgs);
+                        readArgsPool.Return(eventArgs);
+                        break;
+                    }
                 }
-                else
+                catch (Exception ex)
                 {
-                    var buffer = eventArgs.MemoryBuffer;
-                    var remaining = eventArgs.Buffer.Length - RESULT.ReadLength;
-                    var source = buffer.Slice(RESULT.ReadLength, remaining);
-                    var destination = buffer.Slice(0, remaining);
-                    // 移动数据（安全处理重叠）
-                    source.CopyTo(destination);
-                    eventArgs.SetBuffer(remaining, RESULT.ReadLength);
+                    // 处理异常
+                    Console.WriteLine($"Error processing receive: {ex.Message}");
+                    CloseClientSocket(eventArgs);
+                    readArgsPool.Return(eventArgs);
+                    break;
                 }
 
-                //eventArgs.SetBuffer(11, 22);
-
-                //string receivedText = Encoding.UTF8.GetString(eventArgs.Buffer, eventArgs.Offset, eventArgs.BytesTransferred);
-                //Console.WriteLine($"Received: {receivedText}");
-                if (!clientSocket.ReceiveAsync(eventArgs)) ProcessReceive(eventArgs);
-                // 回写数据
-                //byte[] responseData = Encoding.UTF8.GetBytes("Echo: " + receivedText);
-                //eventArgs.SetBuffer(responseData, 0, responseData.Length);
-                //if (!clientSocket.SendAsync(eventArgs)) ProcessSend(eventArgs);
-
-                //send100000(clientSocket);
-            }
-            else
-            {
-                // 关闭连接
-                CloseClientSocket(eventArgs);
-                readArgsPool.Return(eventArgs);
-            }
+            } while (!clientSocket.ReceiveAsync(eventArgs));  // 继续接收数据
         }
-
-
-
-
-
 
 
 
@@ -260,9 +266,9 @@ namespace Light.Transmit.Network
         public void Listen(IPAddress ipAddress, int port)
         {
             // 初始化监听Socket
-            listenerSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-            listenerSocket.Bind(new IPEndPoint(ipAddress, port));
-            listenerSocket.Listen(100);
+
+            socket.Bind(new IPEndPoint(ipAddress, port));
+            socket.Listen(100);
             Console.WriteLine("Server started. Listening for connections...");
             // 初始化对象池
             for (int i = 0; i < MaxConnections; i++)
@@ -291,34 +297,39 @@ namespace Light.Transmit.Network
             }
             set
             {
-
+       
             }
         }
 
         public int CurrentConnections => 0;
 
-        public int ReceiveBufferSize
+
+        public override int ReceiveBufferSize
         {
             get
             {
-                return 0;
+                return receiveBufferSize;
             }
             set
             {
-
+                receiveBufferSize = value;
+                base.ReceiveBufferSize = value;
             }
         }
-        public int SendBufferSize
+
+        public override int SendBufferSize
         {
             get
             {
-                return 0;
+                return sendBufferSize;
             }
             set
             {
-
+                sendBufferSize = value;
+                base.SendBufferSize = value;
             }
         }
+
 
 
     }

@@ -44,7 +44,7 @@ namespace Light.Message
             {
                 case "tcp":
                     {
-                        _packetServer = new HighPerformanceTcpServer();
+                        _packetServer = new HighPerformanceTcpServer(); // HighPerformanceTcpServer   TCPServer
                         break;
                     }
                 case "pipe":
@@ -68,7 +68,7 @@ namespace Light.Message
             _packetServer = null;
         }
 
-
+        Int32 count;
         public override UnPacketResult OnPacket(IConnectionSession session, ReadOnlySequence<byte> buffer)
         {
             Int32 len = 0;
@@ -89,8 +89,20 @@ namespace Light.Message
                             break;
                         }
                     }
+
                     // be remove and put this in middlewares
-                    if (passed) OnReceive(session, message);
+                    if (passed)
+                    {
+                        count++;
+                        ////if (count % 1000000 == 0)
+                        //{
+                        //    Console.WriteLine("Received packet: {0}", count);
+                        //}
+
+
+
+                        OnReceive(session, message);
+                    }
                 }
                 else if (result == ParseResult.Partial)
                 {
