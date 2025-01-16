@@ -25,11 +25,11 @@ namespace Examples.Services
         public async Task StartAsync(CancellationToken cancellationToken)
         {
             var querys = applicationOptions.ServerUri.ParseQuery();
-            if (querys.TryGetValue("pwd", out var pwd))
-            {
-                this.Middlewares.Add(new GatewayAuthMiddleware(pwd.ToString()));
-                logger.LogInformation("MessageServer Use AuthMiddleware [ authorization: {0} ]", pwd);
-            }
+            //if (querys.TryGetValue("pwd", out var pwd))
+            //{
+            //    this.Middlewares.Add(new GatewayAuthMiddleware(pwd.ToString()));
+            //    logger.LogInformation("MessageServer Use AuthMiddleware [ authorization: {0} ]", pwd);
+            //}
 
             Listen(applicationOptions.ServerUri);
             logger.LogInformation("TCP Server Listen: {0}", applicationOptions.ServerUri);

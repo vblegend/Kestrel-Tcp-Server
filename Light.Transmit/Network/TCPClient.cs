@@ -26,7 +26,7 @@ namespace Light.Transmit.Network
 
         private Int32 sendBufferSize = 8192;
 
-
+        public IConnectionSession Session => session;
 
 
         public override int ReceiveBufferSize

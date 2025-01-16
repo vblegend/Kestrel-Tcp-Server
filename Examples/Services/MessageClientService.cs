@@ -72,8 +72,8 @@ namespace Examples.Services
         public async Task StartAsync(CancellationToken cancellationToken)
         {
             await ConnectAsync(applicationOptions.ClientUri, cancellationToken);
-            var response = await this.Login("123456");
-            logger.LogInformation("CLIENT {0}, CODE = {1}", "身份验证成功", response.Code);
+            //var response = await this.Login("123456");
+            //logger.LogInformation("CLIENT {0}, CODE = {1}", "身份验证成功", response.Code);
 
             sendToken = StartSendMessage();
             await Task.CompletedTask;

@@ -28,6 +28,15 @@ namespace Light.Transmit.Internals
         }
 
         public IntPtr UserData { get; set; }
+
+
+
+        internal void Init(Socket socket)
+        {
+            _socket = socket;
+        }
+
+
         internal void Init(NetworkStream networkStream, Int32 writeBufferSize)
         {
             _socket = networkStream.Socket;

@@ -1,57 +1,69 @@
 ﻿using Light.Transmit.Adapters;
 using Light.Transmit.Internals;
+using Light.Transmit.Pools;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Buffers;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.IO.Pipelines;
 using System.Net;
 using System.Net.Sockets;
+using System.Reflection.PortableExecutable;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using static System.Collections.Specialized.BitVector32;
 
 
 
 
 namespace Light.Transmit.Network
 {
-    public class HighPerformanceTcpServer : IPV4Socket
+    public class HighPerformanceTcpServer : IPacketServer
     {
         private Socket listenerSocket;
         private ConcurrentBag<SocketAsyncEventArgs> argsPool;
         private const int BufferSize = 1024;
         private const int MaxConnections = 100;
         private readonly SocketAsyncEventArgs acceptEventArgs;
+        private readonly ObjectPool<SocketAsyncEventArgs> writePool;
+        private readonly ObjectPool<SocketAsyncEventArgs> readArgsPool;
+        private ServerHandlerAdapter handlerAdapter = null;
+
+        private SocketAsyncEventArgs CreateSocketAsyncEventArgs()
+        {
+            var args = new SocketAsyncEventArgs();
+            args.Completed += IO_Completed;
+            return args;
+        }
+
+        private SocketAsyncEventArgs CreateReadEventArgs()
+        {
+            var args = new SocketAsyncEventArgs();
+            args.SetBuffer(new byte[5000], 0, 5000);
+            args.Completed += IO_Completed;
+            return args;
+        }
+
+
+        public void SetAdapter(ServerHandlerAdapter handlerAdapter)
+        {
+            this.handlerAdapter = handlerAdapter;
+        }
         public HighPerformanceTcpServer()
         {
             argsPool = new ConcurrentBag<SocketAsyncEventArgs>();
-
+            writePool = new ObjectPool<SocketAsyncEventArgs>(this.CreateSocketAsyncEventArgs, 1024);
+            readArgsPool = new ObjectPool<SocketAsyncEventArgs>(this.CreateReadEventArgs, 1024);
             acceptEventArgs = new SocketAsyncEventArgs();
             acceptEventArgs.Completed += (sender, e) => ProcessAccept(acceptEventArgs);
         }
 
-        public void Start(string ipAddress, int port)
-        {
-            // 初始化监听Socket
-            listenerSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-            listenerSocket.Bind(new IPEndPoint(IPAddress.Parse(ipAddress), port));
-            listenerSocket.Listen(100);
-            Console.WriteLine("Server started. Listening for connections...");
-            // 初始化对象池
-            for (int i = 0; i < MaxConnections; i++)
-            {
-                var readWriteArgs = new SocketAsyncEventArgs();
-                readWriteArgs.Completed += IO_Completed;
-                readWriteArgs.SetBuffer(new byte[BufferSize], 0, BufferSize);
-                argsPool.Add(readWriteArgs);
-            }
 
-            // 开始接受连接
-            StartAccept(acceptEventArgs);
-        }
 
         private void StartAccept(SocketAsyncEventArgs acceptArgs)
-        { 
+        {
             // 重置
             acceptArgs.AcceptSocket = null;
             // 异步接受连接
@@ -62,15 +74,22 @@ namespace Light.Transmit.Network
         private void ProcessAccept(SocketAsyncEventArgs acceptArgs)
         {
             Socket clientSocket = acceptArgs.AcceptSocket;
-            if (clientSocket != null && argsPool.TryTake(out var readWriteArgs))
+            if (clientSocket != null)
             {
+                SocketAsyncEventArgs readArgs = readArgsPool.Get();
                 Console.WriteLine("Join");
-                readWriteArgs.AcceptSocket = clientSocket;
-                readWriteArgs.UserToken = 12345667;
+                readArgs.AcceptSocket = clientSocket;
+
+                var session = new InternalNetSession();
+                //session.ConnectionId = Interlocked.Increment(ref ConnectionIdSource);
+                session.ConnectTime = TimeService.Default.LocalNow();
+                //session.Init(networkStream, sendBufferSize);
+                session.Init(clientSocket);
+                readArgs.UserToken = session;
                 //
                 // OnConnection()
                 //
-                if (!clientSocket.ReceiveAsync(readWriteArgs)) ProcessReceive(readWriteArgs);
+                if (!clientSocket.ReceiveAsync(readArgs)) ProcessReceive(readArgs);
             }
             // 继续接受下一个连接
             StartAccept(acceptArgs);
@@ -89,35 +108,58 @@ namespace Light.Transmit.Network
             }
         }
 
-        private void ProcessReceive(SocketAsyncEventArgs eventArgs)
+        private unsafe void ProcessReceive(SocketAsyncEventArgs eventArgs)
         {
             Socket clientSocket = eventArgs.AcceptSocket;
-
+            InternalNetSession session = eventArgs.UserToken as InternalNetSession;
             if (eventArgs.BytesTransferred > 0 && eventArgs.SocketError == SocketError.Success)
             {
                 // 接收数据
-                string receivedText = Encoding.UTF8.GetString(eventArgs.Buffer, eventArgs.Offset, eventArgs.BytesTransferred);
-                Console.WriteLine($"Received: {receivedText}");
+                ReadOnlySequence<Byte> readOnlyMemories = new ReadOnlySequence<byte>(eventArgs.Buffer, 0, eventArgs.Offset + eventArgs.BytesTransferred);
+
+                var RESULT = handlerAdapter.OnPacket(session, readOnlyMemories);
+
+                if (RESULT.ReadLength == eventArgs.Buffer.Length)
+                {
+                    eventArgs.SetBuffer(0, eventArgs.Buffer.Length);
+                }
+                else
+                {
+                    var buffer = eventArgs.MemoryBuffer;
+                    var remaining = eventArgs.Buffer.Length - RESULT.ReadLength;
+                    var source = buffer.Slice(RESULT.ReadLength, remaining);
+                    var destination = buffer.Slice(0, remaining);
+                    // 移动数据（安全处理重叠）
+                    source.CopyTo(destination);
+                    eventArgs.SetBuffer(remaining, RESULT.ReadLength);
+                }
+
+                //eventArgs.SetBuffer(11, 22);
+
+                //string receivedText = Encoding.UTF8.GetString(eventArgs.Buffer, eventArgs.Offset, eventArgs.BytesTransferred);
+                //Console.WriteLine($"Received: {receivedText}");
                 if (!clientSocket.ReceiveAsync(eventArgs)) ProcessReceive(eventArgs);
                 // 回写数据
                 //byte[] responseData = Encoding.UTF8.GetBytes("Echo: " + receivedText);
                 //eventArgs.SetBuffer(responseData, 0, responseData.Length);
                 //if (!clientSocket.SendAsync(eventArgs)) ProcessSend(eventArgs);
 
-                send100000(clientSocket);
-
-
-
-
-
-
+                //send100000(clientSocket);
             }
             else
             {
                 // 关闭连接
                 CloseClientSocket(eventArgs);
+                readArgsPool.Return(eventArgs);
             }
         }
+
+
+
+
+
+
+
 
 
         public async Task send100000(Socket clientSocket)
@@ -126,20 +168,19 @@ namespace Light.Transmit.Network
 
             for (int i = 0; i < 100000; i++)
             {
-                await SendData(clientSocket, responseData);
+                await SendData(clientSocket, i, responseData);
             }
         }
 
 
 
-        public async Task SendData(Socket clientSocket, byte[] data)
+        public async Task SendData(Socket clientSocket, Int32 index, byte[] data)
         {
+            var sendArgs = writePool.Get();
             var tcs = new TaskCompletionSource();
-            var sendArgs = new SocketAsyncEventArgs();
             sendArgs.AcceptSocket = clientSocket;
             sendArgs.UserToken = tcs;
             sendArgs.SetBuffer(data, 0, data.Length);
-            sendArgs.Completed += IO_Completed;
             if (!clientSocket.SendAsync(sendArgs))
             {
                 // 如果 SendAsync 立即完成，调用 SendCompleted 处理数据发送
@@ -150,6 +191,8 @@ namespace Light.Transmit.Network
 
 
         int cpiu = 0;
+
+
         private void ProcessSend(SocketAsyncEventArgs e)
         {
             Socket clientSocket = e.AcceptSocket;
@@ -160,20 +203,21 @@ namespace Light.Transmit.Network
                 if (e.BytesTransferred != length)
                 {
                     // 测试过程中没发现有没发送完成的情况
-                    Console.WriteLine("未发送完成");
+                    Console.WriteLine("未发送完成, 测试过程中没发现有没发送完成的情况");
                 }
                 cpiu++;
                 Console.WriteLine(cpiu);
                 tcs.SetResult();
-                // 继续接收数据
-                //if (!clientSocket.ReceiveAsync(e)) ProcessReceive(e);
             }
             else
             {
-                tcs.SetException(new Exception("连接已关闭"));
                 // 关闭连接
                 CloseClientSocket(e);
+                tcs.SetException(new Exception("连接已关闭"));
             }
+            e.AcceptSocket = null;
+            e.UserToken = null;
+            writePool.Return(e);
         }
 
 
@@ -196,5 +240,86 @@ namespace Light.Transmit.Network
             // 将 SocketAsyncEventArgs 放回对象池
             argsPool.Add(e);
         }
+
+        public void Listen(Uri uri)
+        {
+            if (uri == null) throw new Exception("参数不能为空");
+            if (uri.Scheme != "tcp") throw new Exception("不支持的协议");
+            var querys = uri.ParseQuery();
+            if (querys.TryGetValue("readBuffer", out var readBufferSize))
+            {
+                this.ReceiveBufferSize = Int32.Parse(readBufferSize);
+            }
+            if (querys.TryGetValue("writeBuffer", out var writeBufferSize))
+            {
+                this.SendBufferSize = Int32.Parse(writeBufferSize);
+            }
+            Listen(IPAddress.Parse(uri.Host), uri.Port);
+        }
+
+        public void Listen(IPAddress ipAddress, int port)
+        {
+            // 初始化监听Socket
+            listenerSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+            listenerSocket.Bind(new IPEndPoint(ipAddress, port));
+            listenerSocket.Listen(100);
+            Console.WriteLine("Server started. Listening for connections...");
+            // 初始化对象池
+            for (int i = 0; i < MaxConnections; i++)
+            {
+                var readWriteArgs = new SocketAsyncEventArgs();
+                readWriteArgs.Completed += IO_Completed;
+                readWriteArgs.SetBuffer(new byte[BufferSize], 0, BufferSize);
+                argsPool.Add(readWriteArgs);
+            }
+
+            // 开始接受连接
+            StartAccept(acceptEventArgs);
+        }
+
+        public Task StopAsync()
+        {
+            return Task.CompletedTask;
+        }
+
+
+        public int MaximumConnectionLimit
+        {
+            get
+            {
+                return 0;
+            }
+            set
+            {
+
+            }
+        }
+
+        public int CurrentConnections => 0;
+
+        public int ReceiveBufferSize
+        {
+            get
+            {
+                return 0;
+            }
+            set
+            {
+
+            }
+        }
+        public int SendBufferSize
+        {
+            get
+            {
+                return 0;
+            }
+            set
+            {
+
+            }
+        }
+
+
     }
 }

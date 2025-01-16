@@ -7,6 +7,7 @@ using Light.Transmit.Network;
 using Serilog;
 using Serilog.Core;
 using Serilog.Extensions.Logging;
+using System.Buffers;
 
 namespace Light.Transmit
 {
@@ -42,16 +43,26 @@ namespace Light.Transmit
             // 动态调整 禁用内存池
             //MFactory<ClientMessage>.SetPoolMaxCapacity(0);
 
-            var pts = new HighPerformanceTcpServer();
+            //var pts = new HighPerformanceTcpServer();
 
-            pts.Start("0.0.0.0", 22222);
-            Console.ReadLine();
+            //pts.Start("0.0.0.0", 22222);
+
+
+            //var tcc = new TCPClient();
+            //tcc.SetAdapter(new NoneClientHandlerAdapter());
+            //await tcc.ConnectAsync("127.0.0.1", 22222, CancellationToken.None);
+            //var bytes = new Byte[] { 1, 2, 3, 4, 5 };
+            //await tcc.Session.WriteAsync(bytes.AsMemory());
+
+
+
+            //Console.ReadLine();
 
 
             var host = CreateHostBuilder(args).Build();
             await host.RunAsync();
             host.Dispose();
-       
+
         }
 
 
@@ -76,8 +87,8 @@ namespace Light.Transmit
             services.AddSingleton<IPBlacklistTrie>(ipBlock);
 
             services.AddTimeService();
-            services.AddSingleton<TestService>();
-            services.AddHostedService(provider => provider.GetRequiredService<TestService>());
+            //services.AddSingleton<TestService>();
+            //services.AddHostedService(provider => provider.GetRequiredService<TestService>());
 
             services.AddSingleton<ClientMessageProcessService>();
             services.AddHostedService(provider => provider.GetRequiredService<ClientMessageProcessService>());

@@ -44,7 +44,7 @@ namespace Light.Message
             {
                 case "tcp":
                     {
-                        _packetServer = new TCPServer();
+                        _packetServer = new HighPerformanceTcpServer();
                         break;
                     }
                 case "pipe":
