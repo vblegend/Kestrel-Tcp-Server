@@ -34,6 +34,7 @@ namespace Light.Transmit.Internals
         internal void Init(Socket socket)
         {
             _socket = socket;
+            RemoteEndPoint = _socket.RemoteEndPoint;
         }
 
 

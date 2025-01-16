@@ -7,6 +7,7 @@ using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 
@@ -16,16 +17,14 @@ namespace Light.Transmit.Network
 {
     public class HighPerformanceTcpServer : IPV4Socket, IPacketServer
     {
-        private ConcurrentBag<SocketAsyncEventArgs> argsPool;
-        private const int BufferSize = 1024;
-        private const int MaxConnections = 100;
         private readonly SocketAsyncEventArgs acceptEventArgs;
         private readonly ObjectPool<SocketAsyncEventArgs> writePool;
         private readonly ObjectPool<SocketAsyncEventArgs> readArgsPool;
         private ServerHandlerAdapter handlerAdapter = null;
         private Int32 receiveBufferSize = 8192;
         private Int32 sendBufferSize = 8192;
-
+        private Int32 maximumConnectionLimit = 100;
+        private Int64 ConnectionIdSource;
 
         private SocketAsyncEventArgs CreateSocketAsyncEventArgs()
         {
@@ -37,7 +36,7 @@ namespace Light.Transmit.Network
         private SocketAsyncEventArgs CreateReadEventArgs()
         {
             var args = new SocketAsyncEventArgs();
-            args.SetBuffer(new byte[8192000], 0, 8192000);
+            args.SetBuffer(new byte[receiveBufferSize], 0, receiveBufferSize);
             args.Completed += IO_Completed;
             return args;
         }
@@ -49,11 +48,10 @@ namespace Light.Transmit.Network
         }
         public HighPerformanceTcpServer()
         {
-            argsPool = new ConcurrentBag<SocketAsyncEventArgs>();
             writePool = new ObjectPool<SocketAsyncEventArgs>(this.CreateSocketAsyncEventArgs, 1024);
             readArgsPool = new ObjectPool<SocketAsyncEventArgs>(this.CreateReadEventArgs, 1024);
             acceptEventArgs = new SocketAsyncEventArgs();
-            acceptEventArgs.Completed += (sender, e) => ProcessAccept(acceptEventArgs);
+            acceptEventArgs.Completed += IO_Completed;
         }
 
 
@@ -69,30 +67,42 @@ namespace Light.Transmit.Network
 
         private void ProcessAccept(SocketAsyncEventArgs acceptArgs)
         {
-            Socket clientSocket = acceptArgs.AcceptSocket;
-            if (clientSocket != null)
+            while (true)
             {
-                SocketAsyncEventArgs readArgs = readArgsPool.Get();
-                Console.WriteLine("Join");
-                readArgs.AcceptSocket = clientSocket;
-                clientSocket.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.NoDelay, true);
-                clientSocket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.SendBuffer, sendBufferSize);
-                clientSocket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReceiveBuffer, receiveBufferSize);
+                Socket clientSocket = acceptArgs.AcceptSocket;
+                if (clientSocket != null)
+                {
+                    clientSocket.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.NoDelay, true);
+                    clientSocket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.SendBuffer, sendBufferSize);
+                    clientSocket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReceiveBuffer, receiveBufferSize);
+                    SocketAsyncEventArgs receiveArgs = readArgsPool.Get();
+                    //
+                    var session = new InternalNetSession();
+                    session.ConnectionId = Interlocked.Increment(ref ConnectionIdSource);
+                    session.ConnectTime = TimeService.Default.LocalNow();
+                    session.Init(clientSocket);
+                    receiveArgs.UserToken = session;
+                    receiveArgs.AcceptSocket = clientSocket;
+                    //Console.WriteLine("Join");
+                    //
+                    // OnConnection()
+                    //
+                    var ok = handlerAdapter.OnConnected(session).Result;
+                    if (ok)
+                    {
+                        if (!clientSocket.ReceiveAsync(receiveArgs)) ProcessReceive(receiveArgs);
+                    }
+                    else
+                    {
+                        clientSocket.Close();
+                    }
+                }
 
-                var session = new InternalNetSession();
-                //session.ConnectionId = Interlocked.Increment(ref ConnectionIdSource);
-                session.ConnectTime = TimeService.Default.LocalNow();
-                //session.Init(networkStream, sendBufferSize);
-                session.Init(clientSocket);
-                readArgs.UserToken = session;
-                //
-                // OnConnection()
-                //
-                if (!clientSocket.ReceiveAsync(readArgs))
-                    ProcessReceive(readArgs);
+                acceptArgs.AcceptSocket = null;
+                if (socket.AcceptAsync(acceptArgs)) break;
             }
             // 继续接受下一个连接
-            StartAccept(acceptArgs);
+            //StartAccept(acceptArgs);
         }
 
         private void IO_Completed(object sender, SocketAsyncEventArgs e)
@@ -104,6 +114,9 @@ namespace Light.Transmit.Network
                     break;
                 case SocketAsyncOperation.Send:
                     ProcessSend(e);
+                    break;
+                case SocketAsyncOperation.Accept:
+                    ProcessAccept(e);
                     break;
             }
         }
@@ -202,6 +215,7 @@ namespace Light.Transmit.Network
         private void ProcessSend(SocketAsyncEventArgs e)
         {
             Socket clientSocket = e.AcceptSocket;
+
             TaskCompletionSource tcs = e.UserToken as TaskCompletionSource;
             if (e.SocketError == SocketError.Success)
             {
@@ -212,7 +226,7 @@ namespace Light.Transmit.Network
                     Console.WriteLine("未发送完成, 测试过程中没发现有没发送完成的情况");
                 }
                 cpiu++;
-                Console.WriteLine(cpiu);
+                //Console.WriteLine(cpiu);
                 tcs.SetResult();
             }
             else
@@ -244,7 +258,6 @@ namespace Light.Transmit.Network
             e.UserToken = null;
             Console.WriteLine("Client disconnected");
             // 将 SocketAsyncEventArgs 放回对象池
-            argsPool.Add(e);
         }
 
         public void Listen(Uri uri)
@@ -270,15 +283,6 @@ namespace Light.Transmit.Network
             socket.Bind(new IPEndPoint(ipAddress, port));
             socket.Listen(100);
             Console.WriteLine("Server started. Listening for connections...");
-            // 初始化对象池
-            for (int i = 0; i < MaxConnections; i++)
-            {
-                var readWriteArgs = new SocketAsyncEventArgs();
-                readWriteArgs.Completed += IO_Completed;
-                readWriteArgs.SetBuffer(new byte[BufferSize], 0, BufferSize);
-                argsPool.Add(readWriteArgs);
-            }
-
             // 开始接受连接
             StartAccept(acceptEventArgs);
         }
@@ -293,11 +297,11 @@ namespace Light.Transmit.Network
         {
             get
             {
-                return 0;
+                return maximumConnectionLimit;
             }
             set
             {
-       
+                maximumConnectionLimit = value;
             }
         }
 
