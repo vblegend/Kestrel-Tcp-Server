@@ -8,7 +8,7 @@
             Boolean useTcpProtocol = true;
             String pwd = "123456";
             // 提升发送接收缓冲区大小可以提升高吞吐量
-            var readBufferSize = 1024 * 8000;
+            var readBufferSize = 1024 * 8192;
             var writeBufferSize = 1024 * 8;
             if (useTcpProtocol)
             {

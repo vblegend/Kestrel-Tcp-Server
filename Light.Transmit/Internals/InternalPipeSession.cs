@@ -23,7 +23,6 @@ namespace Light.Transmit.Internals
 
         public bool IsConnected => stream.IsConnected;
 
-        public IntPtr UserData { get; set; }
         public void Close(SessionShutdownCause cause)
         {
             stream?.Close();

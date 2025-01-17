@@ -122,7 +122,7 @@ namespace Light.Transmit.Network
                 if (cancelToken.IsCancellationRequested) return;
                 socket.BeginAccept(new AsyncCallback(HandleAccepted), cancelToken);
 
-               await socket.AcceptAsync();
+                await socket.AcceptAsync();
 
 
             }
@@ -161,40 +161,38 @@ namespace Light.Transmit.Network
             Int32 minimumReadSize = 1;
             try
             {
+                // 连接数限制
+                if (_currentConnectionCounter >= _maximumConnectionLimit) return;
+                // 服务器同意
+                if (!handlerAdapter.OnAccept(socket)) return;
+                Interlocked.Increment(ref _currentConnectionCounter);
                 socket.ReceiveBufferSize = this.ReceiveBufferSize;
                 socket.SendBufferSize = this.SendBufferSize;
-                Interlocked.Increment(ref _currentConnectionCounter);
-                // 连接数限制
-                if (_currentConnectionCounter > _maximumConnectionLimit) return;
                 networkStream = new NetworkStream(socket, ownsSocket: true);
-                var reader = PipeReader.Create(networkStream, new StreamPipeReaderOptions(bufferSize: receiveBufferSize));
                 session = new InternalNetSession();
                 session.ConnectionId = Interlocked.Increment(ref ConnectionIdSource);
                 session.ConnectTime = TimeService.Default.LocalNow();
-                session.Init(networkStream, sendBufferSize);
-                var allowConnect = await handlerAdapter.OnConnected(session);
-                if (allowConnect)
+                var writer = PipeWriter.Create(networkStream, new StreamPipeWriterOptions(minimumBufferSize: sendBufferSize));
+                var reader = PipeReader.Create(networkStream, new StreamPipeReaderOptions(bufferSize: receiveBufferSize));
+                session.Init(socket, writer);
+                await handlerAdapter.OnConnected(session);
+
+
+                while (!cancellationToken.IsCancellationRequested && socket.Connected)
                 {
-                    while (!cancellationToken.IsCancellationRequested && socket.Connected)
-                    {
-                        var result = await reader.ReadAtLeastAsync(minimumReadSize, cancellationToken);
-                        if (result.IsCompleted) break;
-                        var RESULT = handlerAdapter.OnPacket(session, result.Buffer);
-                        reader.AdvanceTo(result.Buffer.GetPosition(RESULT.ReadLength));
-                        minimumReadSize = RESULT.NextReadLength;
-                    }
-                    if (cancellationToken.IsCancellationRequested)
-                    {
-                        session.Close(SessionShutdownCause.SHUTTING_DOWN);
-                    }
-                    else
-                    {
-                        session.Close(SessionShutdownCause.UNEXPECTED_DISCONNECTED);
-                    }
+                    var result = await reader.ReadAtLeastAsync(minimumReadSize, cancellationToken);
+                    if (result.IsCompleted) break;
+                    var RESULT = handlerAdapter.OnPacket(session, result.Buffer);
+                    reader.AdvanceTo(result.Buffer.GetPosition(RESULT.ReadLength));
+                    minimumReadSize = RESULT.NextReadLength;
+                }
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    session.Close(SessionShutdownCause.SHUTTING_DOWN);
                 }
                 else
                 {
-                    session.Close(SessionShutdownCause.CONNECTION_DENIAL);
+                    session.Close(SessionShutdownCause.UNEXPECTED_DISCONNECTED);
                 }
             }
             catch (OperationCanceledException)
@@ -230,6 +228,7 @@ namespace Light.Transmit.Network
                 if (session != null)
                 {
                     await handlerAdapter.OnClose(session);
+                    
                 }
                 if (Interlocked.Decrement(ref _currentConnectionCounter) == 0)
                 {

@@ -7,6 +7,7 @@ using System;
 using System.Buffers;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Sockets;
 using System.Threading.Tasks;
 
 
@@ -118,6 +119,12 @@ namespace Light.Message
         }
 
         public abstract void OnReceive(IConnectionSession session, AbstractNetMessage message);
+
+
+        public override Boolean OnAccept(Socket socket)
+        {
+            return true;
+        }
 
     }
 }

@@ -1,5 +1,4 @@
 ﻿using Examples.Client;
-using Examples.Middleware;
 using Light.Message;
 using Light.Transmit;
 using System.Buffers;
@@ -43,20 +42,16 @@ namespace Examples.Services
         }
 
 
-        public override async ValueTask<bool> OnConnected(IConnectionSession session)
+        public override async ValueTask OnConnected(IConnectionSession session)
         {
-            //if (connection.RemoteEndPoint is IPEndPoint ipEndPoint)
-            //{
-            //    if (this.iPBlacklist.IsBlocked(ipEndPoint.Address))
-            //    {
-            //        logger.LogInformation($"Blocked Client Connect: {ipEndPoint.Address}");
-            //        return false;
-            //    }
-            //}
-
             logger.LogInformation("SERVER {0}[{1}], ClientIp: {2}", "CONNECTED", session.ConnectionId, session.RemoteEndPoint);
+
+
+           
+
+
+
             await session.WriteFlushAsync(MessageFactory.Create<ClientMessage>());
-            return true;
         }
 
 

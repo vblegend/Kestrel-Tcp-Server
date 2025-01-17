@@ -3,11 +3,9 @@ using Examples;
 using Examples.Client;
 using Examples.Services;
 using Light.Message;
-using Light.Transmit.Network;
 using Serilog;
 using Serilog.Core;
 using Serilog.Extensions.Logging;
-using System.Buffers;
 
 namespace Light.Transmit
 {
@@ -56,13 +54,13 @@ namespace Light.Transmit
 
 
 
-            //Console.ReadLine();
+            //
 
 
             var host = CreateHostBuilder(args).Build();
             await host.RunAsync();
             host.Dispose();
-
+            Console.ReadLine();
         }
 
 

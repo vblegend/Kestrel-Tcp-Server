@@ -84,7 +84,6 @@ namespace Light.Transmit
         /// </summary>
         public object[] Datas { get; }
 
-        public IntPtr UserData { get; set; }
 
         /// <summary>
         /// 客户端连接的时间戳

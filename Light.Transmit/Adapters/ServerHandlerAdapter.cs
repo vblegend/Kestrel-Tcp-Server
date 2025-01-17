@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Buffers;
+using System.Net.Sockets;
 using System.Threading.Tasks;
 
 namespace Light.Transmit.Adapters
@@ -60,19 +61,30 @@ namespace Light.Transmit.Adapters
     }
 
 
+    public delegate IConnectionSession AcceptCallback();
+
+
     /// <summary>
     /// 服务器事件适配器
     /// </summary>
     public abstract class ServerHandlerAdapter
     {
 
+        /// <summary>
+        /// 新的客户端连接应答
+        /// </summary>
+        /// <param name="socket"></param>
+        /// <returns> 返回false拒绝连接</returns>
+        public abstract Boolean OnAccept(Socket socket);
+
+
 
         /// <summary>
-        /// 新的客户端连接事件
+        /// 新的客户端连接成功
         /// </summary>
         /// <param name="session"></param>
         /// <returns></returns>
-        public abstract ValueTask<bool> OnConnected(IConnectionSession session);
+        public abstract ValueTask OnConnected(IConnectionSession session);
 
 
 

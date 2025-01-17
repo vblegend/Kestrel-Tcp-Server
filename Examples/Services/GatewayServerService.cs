@@ -1,7 +1,6 @@
-﻿using Examples.Middleware;
-using Light.Message;
+﻿using Light.Message;
 using Light.Transmit;
-
+using System.Net.Sockets;
 using System.Threading.Channels;
 
 namespace Examples.Services
@@ -41,12 +40,10 @@ namespace Examples.Services
             logger.LogInformation($"TCP Server Stoped.");
         }
 
-
-        public override async ValueTask<bool> OnConnected(IConnectionSession session)
+        public override async ValueTask OnConnected(IConnectionSession session)
         {
             logger.LogInformation("SERVER {0}[{1}], ClientIp: {2}", "CONNECTED", session.ConnectionId, session.RemoteEndPoint);
             //await session.WriteFlushAsync(MessageFactory.Create<ClientMessage>());
-            return true;
         }
 
 
@@ -66,5 +63,13 @@ namespace Examples.Services
         {
             _ = channelWriter.WriteAsync(message);
         }
+
+
+        public override bool OnAccept(Socket socket)
+        {
+            return true;
+        }
+
+
     }
 }
