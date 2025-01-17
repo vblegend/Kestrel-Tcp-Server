@@ -268,17 +268,17 @@ namespace Light.Transmit.Network
 
 
 
-        internal async Task SendData(InternalEventSession session, byte[] data)
+        internal async Task SendData(InternalEventSession session, Memory<byte> buffer)
         {
             var socket = session._socket;
             var sendArgs = writePool.Get();
             sendArgs.AcceptSocket = socket;
-            sendArgs.SetBuffer(data.AsMemory());
+            sendArgs.SetBuffer(buffer);
             var context = new SendEventContext();
             context.Session = session;
             context.TaskSource = new TaskCompletionSource();
             sendArgs.UserToken = context;
-            if (!socket.SendAsync(sendArgs)) ProcessSend(sendArgs);
+            DoSendEventArgs(sendArgs);
             await context.TaskSource.Task;
         }
 
