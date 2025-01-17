@@ -15,8 +15,10 @@ namespace Light.Transmit
     public class Program
     {
 
+
         private static readonly Logger logger = InitSerilog();
 
+        private static readonly GCEventListener gCEventListener = new GCEventListener();
         private static Logger InitSerilog()
         {
             var configuration = new LoggerConfiguration();
@@ -83,6 +85,8 @@ namespace Light.Transmit
             services.AddSingleton<ApplicationOptions>(appOptions);
 
             services.AddSingleton<IPBlacklistTrie>(ipBlock);
+
+    
 
             services.AddTimeService();
             //services.AddSingleton<TestService>();
