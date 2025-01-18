@@ -19,7 +19,7 @@ namespace Light.Transmit
 
         private static readonly Logger logger = InitSerilog();
 
-        private static readonly GCEventListener gCEventListener = new GCEventListener();
+        //private static readonly GCEventListener gCEventListener = new GCEventListener();
         private static Logger InitSerilog()
         {
             var configuration = new LoggerConfiguration();

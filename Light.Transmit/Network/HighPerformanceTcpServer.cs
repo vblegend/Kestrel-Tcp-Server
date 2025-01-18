@@ -128,10 +128,10 @@ namespace Light.Transmit.Network
                     session.ConnectionId = Interlocked.Increment(ref ConnectionIdSource);
                     session.ConnectTime = TimeService.Default.LocalNow();
                     //session.Init(clientSocket);
-                   // var writer = new SocketBufferWriter(this, clientSocket, session, writePool, sendBufferSize);
+                    var writer = new SocketBufferWriter(this, clientSocket, session, writePool, sendBufferSize);
 
-                    var socketStream = new NetworkStream(clientSocket);
-                    var writer = PipeWriter.Create(socketStream, new StreamPipeWriterOptions(minimumBufferSize:sendBufferSize));
+
+                    //var writer = PipeWriter.Create(new NetworkStream(clientSocket), new StreamPipeWriterOptions(minimumBufferSize:sendBufferSize));
 
 
 

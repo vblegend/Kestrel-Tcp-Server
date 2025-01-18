@@ -40,10 +40,10 @@ namespace Examples.Services
                 logger.LogInformation("Server Received packet: {0}", count);
             }
 
-            //var response = MFactory<GatewayPingMessage>.GetMessage();
-            //response.X = 5252;
-            //message.Session.Write(response);
-            //response.Return();
+            var response = MFactory<GatewayPingMessage>.GetMessage();
+            response.X = 5252;
+            message.Session.Write(response);
+            response.Return();
 
 
             await ValueTask.CompletedTask;
