@@ -37,8 +37,15 @@ namespace Examples.Services
             count++;
             if (count % 1000000 == 0)
             {
-                logger.LogInformation("Received packet: {0}", count);
+                logger.LogInformation("Server Received packet: {0}", count);
             }
+
+            //var response = MFactory<GatewayPingMessage>.GetMessage();
+            //response.X = 5252;
+            //message.Session.Write(response);
+            //response.Return();
+
+
             await ValueTask.CompletedTask;
         }
 
@@ -53,7 +60,7 @@ namespace Examples.Services
             count++;
             if (count % 1000000 == 0)
             {
-                logger.LogInformation("Received packet: {0}", count);
+                logger.LogInformation("Server Received packet: {0}", count);
             }
             await ValueTask.CompletedTask;
         }

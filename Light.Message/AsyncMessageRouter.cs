@@ -102,7 +102,6 @@ namespace Light.Message
                         message = await channelReader.ReadAsync(cancelToken);
                     }
                     await this.RouteAsync(message);
-                    message?.Return();
                 }
                 catch (Exception) { }
                 finally
@@ -153,7 +152,6 @@ namespace Light.Message
             }
             finally
             {
-                message.Return();
             }
             return true;
         }

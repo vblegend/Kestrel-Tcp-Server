@@ -10,7 +10,7 @@ namespace Light.Transmit.Internals
 
     internal class InternalNetSession : IConnectionSession, IDisposable
     {
-        internal Socket _socket;
+        private Socket _socket;
 
         private PipeWriter _writer;
         public long ConnectionId { get; set; }

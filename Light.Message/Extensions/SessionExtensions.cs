@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 
 
 
-namespace System.Buffers
+namespace System
 {
     public static class SessionExtensions
     {

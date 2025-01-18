@@ -93,6 +93,7 @@ namespace Examples.Services
             //await session.WriteFlushAsync(MessageFactory.ExampleMessage(251));
         }
 
+        int count = 0;
         public override async ValueTask OnClose(IConnectionSession session)
         {
             this.session = null;
@@ -109,11 +110,17 @@ namespace Examples.Services
 
         public override void OnReceive(IConnectionSession session, AbstractNetMessage message)
         {
-            if (authCompleted != null && message.Kind == GatewayMessageKind.AuthResponse)
+            //if (authCompleted != null && message.Kind == GatewayMessageKind.AuthResponse)
+            //{
+            //    authCompleted.SetResult((GatewayAuthResponseMessage)message);
+            //    return;
+            //}
+            if (++count % 1000000 == 0)
             {
-                authCompleted.SetResult((GatewayAuthResponseMessage)message);
-                return;
+                logger.LogInformation("Client Received packet: {0}", count);
             }
+
+
             message.Return();
 
         }

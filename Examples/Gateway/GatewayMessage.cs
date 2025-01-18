@@ -61,7 +61,7 @@ namespace Examples.Gateway
 
 
 
-    [Message(GatewayMessageKind.Ping)]
+    [Message(GatewayMessageKind.Ping, PoolingOptions.Pooling)]
     public class GatewayPingMessage : GatewayMessage
     {
         public Int64 X = 123;

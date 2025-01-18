@@ -1,6 +1,7 @@
 
 using Examples;
 using Examples.Client;
+using Examples.Gateway;
 using Examples.Services;
 using Light.Message;
 using Serilog;
@@ -41,7 +42,7 @@ namespace Light.Transmit
             // 动态调整 内存池容量
             MFactory<ClientMessage>.SetPoolMaxCapacity(500000);
             // 动态调整 禁用内存池
-            //MFactory<ClientMessage>.SetPoolMaxCapacity(0);
+            MFactory<GatewayPingMessage>.SetPoolMaxCapacity(500000);
 
             //var pts = new HighPerformanceTcpServer();
 
