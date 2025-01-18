@@ -1,7 +1,6 @@
 ﻿using Examples.Gateway;
 using Light.Message;
 using Light.Transmit;
-using System.Buffers;
 
 
 namespace Examples.Middleware

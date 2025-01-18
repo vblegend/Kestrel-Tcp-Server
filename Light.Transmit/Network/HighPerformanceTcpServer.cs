@@ -5,17 +5,11 @@ using System;
 using System.Buffers;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.IO.Pipelines;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using static System.Collections.Specialized.BitVector32;
-
-
-
 
 namespace Light.Transmit.Network
 {
@@ -25,11 +19,7 @@ namespace Light.Transmit.Network
     public class HighPerformanceTcpServer : IPV4Socket, IPacketServer
     {
 
-        internal class SendEventContext
-        {
-            public InternalNetSession Session;
-            public TaskCompletionSource TaskSource;
-        }
+
 
 
 

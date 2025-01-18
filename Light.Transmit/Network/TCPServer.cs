@@ -169,11 +169,11 @@ namespace Light.Transmit.Network
                 socket.ReceiveBufferSize = this.ReceiveBufferSize;
                 socket.SendBufferSize = this.SendBufferSize;
                 networkStream = new NetworkStream(socket, ownsSocket: true);
+                var writer = PipeWriter.Create(networkStream, new StreamPipeWriterOptions(minimumBufferSize: sendBufferSize));
+                var reader = PipeReader.Create(networkStream, new StreamPipeReaderOptions(bufferSize: receiveBufferSize));
                 session = new InternalNetSession();
                 session.ConnectionId = Interlocked.Increment(ref ConnectionIdSource);
                 session.ConnectTime = TimeService.Default.LocalNow();
-                var writer = PipeWriter.Create(networkStream, new StreamPipeWriterOptions(minimumBufferSize: sendBufferSize));
-                var reader = PipeReader.Create(networkStream, new StreamPipeReaderOptions(bufferSize: receiveBufferSize));
                 session.Init(socket, writer);
                 await handlerAdapter.OnConnected(session);
 
@@ -228,7 +228,7 @@ namespace Light.Transmit.Network
                 if (session != null)
                 {
                     await handlerAdapter.OnClose(session);
-                    
+
                 }
                 if (Interlocked.Decrement(ref _currentConnectionCounter) == 0)
                 {

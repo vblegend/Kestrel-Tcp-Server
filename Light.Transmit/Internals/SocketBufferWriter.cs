@@ -1,20 +1,14 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
+﻿using Light.Transmit.Network;
+using Light.Transmit.Pools;
+using System;
+using System.IO.Pipelines;
+using System.Net.Sockets;
+using System.Threading;
 using System.Threading.Tasks;
+
 
 namespace Light.Transmit.Internals
 {
-    using Light.Transmit.Network;
-    using Light.Transmit.Pools;
-    using System;
-    using System.Buffers;
-    using System.IO.Pipelines;
-    using System.Net.Sockets;
-    using System.Threading;
-    using System.Threading.Tasks;
-    using static Light.Transmit.Network.HighPerformanceTcpServer;
 
     internal class SocketBufferWriter : PipeWriter
     {
@@ -116,9 +110,17 @@ namespace Light.Transmit.Internals
 
         }
 
+
+        public override async ValueTask CompleteAsync(Exception? exception = null)
+        {
+            await FlushAsync(CancellationToken.None).ConfigureAwait(false);
+        }
+
+
+
         public override void Complete(Exception exception = null)
         {
-
+            //
         }
     }
 

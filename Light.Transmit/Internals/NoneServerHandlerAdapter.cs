@@ -1,26 +1,30 @@
 ﻿using Light.Transmit;
 using Light.Transmit.Adapters;
-using Light.Transmit.Network;
+using System;
 using System.Buffers;
+using System.Net.Sockets;
+using System.Threading.Tasks;
 
 namespace Examples
 {
-    public class NoneClientHandlerAdapter : ClientHandlerAdapter
+    internal class NoneServerHandlerAdapter : ServerHandlerAdapter
     {
-
-        private readonly ILogger<NoneClientHandlerAdapter> logger = LoggerProvider.CreateLogger<NoneClientHandlerAdapter>();
+        public override bool OnAccept(Socket socket)
+        {
+            return true;
+        }
 
         public override ValueTask OnClose(IConnectionSession session)
         {
             return ValueTask.CompletedTask;
         }
 
-        public override ValueTask OnConnection(IConnectionSession session)
+        public override ValueTask OnConnected(IConnectionSession session)
         {
             return ValueTask.CompletedTask;
         }
 
-        public override ValueTask OnError(IConnectionSession session, Exception exception)
+        public override ValueTask OnError(IConnectionSession session, Exception ex)
         {
             return ValueTask.CompletedTask;
         }

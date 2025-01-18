@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Examples;
+using System;
 using System.Buffers;
 using System.Threading.Tasks;
 
@@ -9,7 +10,10 @@ namespace Light.Transmit.Adapters
     /// </summary>
     public abstract class ClientHandlerAdapter
     {
-
+        /// <summary>
+        /// 空适配器 啥也不干，只收报文
+        /// </summary>
+        public readonly static ClientHandlerAdapter None = new NoneClientHandlerAdapter();
         /// <summary>
         /// 成功连接至服务器
         /// </summary>

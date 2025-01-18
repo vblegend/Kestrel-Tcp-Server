@@ -117,10 +117,12 @@ namespace Light.Transmit.Network
             try
             {
                 networkStream = new NetworkStream(socket, true);
-                session.Init(networkStream, sendBufferSize);
+                var reader = PipeReader.Create(networkStream, new StreamPipeReaderOptions(bufferSize: receiveBufferSize));
+                var writer = PipeWriter.Create(networkStream, new StreamPipeWriterOptions(minimumBufferSize: sendBufferSize));
                 session.ConnectionId = 0;
                 session.ConnectTime = TimeService.Default.LocalNow();
-                var reader = PipeReader.Create(networkStream, new StreamPipeReaderOptions(bufferSize: receiveBufferSize));
+                session.Init(socket, writer);
+
                 await handlerAdapter.OnConnection(session);
                 while (!cancellationToken.IsCancellationRequested && socket.Connected)
                 {

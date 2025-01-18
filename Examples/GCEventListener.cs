@@ -1,5 +1,4 @@
-﻿using Light.Transmit.Network;
-using Light.Transmit;
+﻿using Light.Transmit;
 using System.Diagnostics.Tracing;
 
 namespace Examples
@@ -20,7 +19,7 @@ namespace Examples
         }
 
         protected override void OnEventWritten(EventWrittenEventArgs eventData)
-        {   
+        {
             if (eventData.EventId == 13) //   eventData.EventName == "GCFinalizersEnd_V1"
             {
                 logger.LogInformation("GCEvent GCFinalizersEnd_V1 Count = {0}", eventData.Payload[0]);

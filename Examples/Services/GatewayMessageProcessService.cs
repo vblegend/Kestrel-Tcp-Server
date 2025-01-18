@@ -42,7 +42,16 @@ namespace Examples.Services
 
             var response = MFactory<GatewayPingMessage>.GetMessage();
             response.X = 5252;
+
+            // 1
+            //await message.Session.WriteFlushAsync(response);
+
+            // 2
             message.Session.Write(response);
+            if (count % 10000 == 0)
+            {
+                await message.Session.FlushAsync();
+            }
             response.Return();
 
 

@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Examples;
+using System;
 using System.Buffers;
 using System.Net.Sockets;
 using System.Threading.Tasks;
@@ -69,6 +70,8 @@ namespace Light.Transmit.Adapters
     /// </summary>
     public abstract class ServerHandlerAdapter
     {
+
+        public static readonly ServerHandlerAdapter None = new NoneServerHandlerAdapter();
 
         /// <summary>
         /// 新的客户端连接应答

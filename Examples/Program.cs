@@ -87,7 +87,7 @@ namespace Light.Transmit
 
             services.AddSingleton<IPBlacklistTrie>(ipBlock);
 
-    
+
 
             services.AddTimeService();
             //services.AddSingleton<TestService>();
